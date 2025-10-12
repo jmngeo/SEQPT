@@ -1,0 +1,25 @@
+{
+  "archetype": "project_oriented_training",
+  "name": "Project-oriented Training", 
+  "description": "Role-specific SE training tailored to project contexts and organizational needs",
+  "target_competency_levels": {
+    "systems_thinking": 3,
+    "requirements_engineering": 4,
+    "architecture_design": 3,
+    "verification_validation": 3,
+    "project_management": 4,
+    "communication": 3
+  },
+  "learning_objective_customizations": {
+    "emphasis": "practical_application",
+    "context": "project_specific",
+    "examples": "company_projects",
+    "tools": "organizational_tools",
+    "timeline": "project_aligned"
+  },
+  "format_preferences": {
+    "primary": ["coaching", "workshops", "on_the_job_training"],
+    "secondary": ["seminars", "case_studies"],
+    "avoid": ["formal_lectures", "theoretical_courses"]
+  }
+}

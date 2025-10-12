@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(tree:*)",
+      "Bash(claude-code run setup-complete-seqpt)",
+      "Bash(venv\\Scripts\\activate:*)",
+      "Bash(./venv/Scripts/activate)",
+      "Bash(pip install:*)",
+      "Bash(node:*)",
+      "Bash(npm --version)",
+      "Bash(npm install)",
+      "Bash(cp:*)",
+      "Bash(../../venv/Scripts/activate)",
+      "Bash(../../../venv/Scripts/activate)",
+      "Bash(./../../venv/Scripts/activate)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

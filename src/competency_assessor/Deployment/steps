@@ -1,0 +1,27 @@
+ssh -i vmsecasurveyapp_key.pem azureuser@50xxxx79
+
+install git
+sudo apt update
+sudo apt install git -y
+
+generate ssh key 
+ssh-keygen -t rsa -b 4096 -C "derik.roby@outlook.com"
+
+
+copy ssh key and add it in github
+cat ~/.ssh/id_rsa.pub
+
+check connectivity to git
+ ssh -T git@github.com
+
+clone the repo
+git clone git@github.com:derik-roby/sesurveyapp.git
+
+ docker compose build --no-cache
+ set env vars dont forget
+docker compose --env-file .env up -d
+
+
+azureuser@vmsecasurveyapp:~/sesurveyapp$ docker exec -it 9a471ce2cb0f bash
+root@9a471ce2cb0f:/# psql -U ma0349 competency_assessment
+ truncate table app_user cascade;

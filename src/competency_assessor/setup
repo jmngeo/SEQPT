@@ -1,0 +1,56 @@
+pip install Flask Flask-Cors psycopg2-binary python-dotenv openai
+pip install Flask SQLAlchemy psycopg2-binary
+pip install harlequin     
+brew install node
+pip install Flask Flask-Cors Flask-SQLAlchemy Flask-Migrate psycopg2-binary python-dotenv openai
+
+
+
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Customer', 'Represents the party that orders or uses a service (e.g., development order). The customer has influence on the design/technical execution of the system.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Customer Representative', 'Forms the interface between the customer and the company. The roles in this cluster form the voice for all customer-relevant information required for the project.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Project Manager', 'Is responsible for the planning and coordination on the project side. The roles assume responsibility for achieving the project goals and monitoring the resources (time, costs, personnel) within a time-limited framework and also have a moderating role in conflicts and disputes.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('System Developer', 'Has the overview from requirements to the decomposition of the system to the interfaces and the associated system elements (external to the system environment and internal between the elements). The system developer is responsible for integration planning and consults with the appropriate subject matter experts.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Specialist Developer', 'Includes the various specialist areas, e.g., software, hardware, etc. They develop new technologies or realize the product/system on the basis of specifications from the system developer cluster.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Production Planner/Coordinator', 'Takes on the preparation of the product realization and the transfer to the customer.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Production Employee', 'Comprises the processes that are to be assigned to the implementation, assembly, and manufacture of the product through to goods issue and shipping. The individual system components are integrated into the overall system and verified with regard to their functionality.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Quality Engineer/Manager', 'Ensures that the company''s quality standards are maintained in order to keep customer satisfaction high and ensure long-term competitiveness in the market. Close cooperation with the V&V operator, e.g., for the analysis of customer complaints and identification of the cause.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Verification and Validation (V&V) Operator', 'Covers the topics of system verification & validation. The involvement of this role cluster in the early phases of system development can ensure that the system is verifiable and validatable.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Service Technician', 'Deals with all service-related tasks at the customer''s site, i.e., installation, commissioning, professional training of users, as well as classic service tasks such as maintenance and repairs, or the area of after-sales.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Process and Policy Manager', 'Is divided into a strategic and an operational level: On a strategic level, the process owner serves to develop internal guidelines in the development and creation or revision of process flows. On an operational level, the policy owner controls compliance with policies, laws, and framework conditions that must be taken into account and fulfilled.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Internal Support', 'Represents the advisory and supporting side during the development process within the project. A distinction is made between: - IT support: IT support provides and maintains the necessary IT infrastructure. - Qualification support: On the one hand, this provides support in the area of methods and, on the other hand, the qualification of the employees is individually ensured by means of specialized training. This can be done by the HR department, which also supports the project by acquiring suitable employees. - Systems Engineering (SE) support: The SE support offers separate support with regard to SE methods and handling of SE tools. This offers assistance in order to impart the necessary knowledge in the SE procedure.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Innovation Management', 'Focuses on the commercially successful implementation of products or services, but also new business models or processes.');
+
+INSERT INTO role_cluster (role_cluster_name, role_cluster_description) VALUES 
+('Management', 'Forms the group of decision-makers and is represented by the management or department management. The cluster keeps an eye on the company''s goals, visions, and values. Since the opinion of the cluster is crucial for project progress, management is an important stakeholder in every respect.');
+
+commit
+
+npm install bootstrap-vue bootstrap
+
+

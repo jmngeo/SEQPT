@@ -1,0 +1,8 @@
+langchain
+langchain-openai
+PyPDF2
+pdfplumber
+psycopg2
+openai 
+faiss-cpu
+langchain-community
