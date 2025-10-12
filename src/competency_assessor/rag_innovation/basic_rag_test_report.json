@@ -1,0 +1,6 @@
+{
+  "test_timestamp": "2025-09-22T19:24:48.451151",
+  "database_path": "../../../../data/rag_vectordb",
+  "status": "success",
+  "message": "Basic RAG functionality working"
+}
