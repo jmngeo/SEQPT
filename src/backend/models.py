@@ -165,7 +165,7 @@ class CompetencyAssessmentResult(db.Model):
     recommendations = db.Column(db.Text)  # JSON string
 
     # Relationships
-    competency = db.relationship('SECompetency', backref='assessment_results')
+    competency = db.relationship('Competency', backref='assessment_results')
 
     @property
     def gap_size(self):
@@ -228,7 +228,7 @@ class LearningObjective(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    competency = db.relationship('SECompetency', backref='learning_objectives')
+    competency = db.relationship('Competency', backref='learning_objectives')
 
 class QualificationPlan(db.Model):
     """Qualification plans from 4-phase process"""
@@ -462,7 +462,7 @@ class LearningModule(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    competency = db.relationship('SECompetency', backref='modules')
+    competency = db.relationship('Competency', backref='modules')
 
 class LearningPath(db.Model):
     """Recommended learning paths for different roles/industries"""
