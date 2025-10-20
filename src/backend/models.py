@@ -152,7 +152,7 @@ class CompetencyAssessmentResult(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), nullable=False)
-    competency_id = db.Column(db.Integer, db.ForeignKey('se_competencies.id'), nullable=False)
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
 
     # Assessment scores
     current_level = db.Column(db.Integer)
@@ -207,7 +207,7 @@ class LearningObjective(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    competency_id = db.Column(db.Integer, db.ForeignKey('se_competencies.id'), nullable=False)
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
 
     # Objective content
     text = db.Column(db.Text, nullable=False)
@@ -431,7 +431,7 @@ class LearningModule(db.Model):
     module_code = db.Column(db.String(10), unique=True, nullable=False)  # e.g., C01, P01, S01, M01
     name = db.Column(db.String(200), nullable=False)
     category = db.Column(db.String(50), nullable=False)  # Core, Professional, Social, Management
-    competency_id = db.Column(db.Integer, db.ForeignKey('se_competencies.id'))
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'))
 
     # Module content
     definition = db.Column(db.Text)
