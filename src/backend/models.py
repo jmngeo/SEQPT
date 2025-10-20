@@ -311,64 +311,103 @@ class PhaseQuestionnaireResponse(db.Model):
 
 
 # =============================================================================
-# SECTION 2: MVP USER MANAGEMENT
+# SECTION 2: UNIFIED USER MANAGEMENT
+# Merges MVPUser + User into single comprehensive model
 # =============================================================================
 
-class MVPUser(db.Model):
-    """Simplified user model with two-tier role structure"""
-    __tablename__ = 'mvp_users'
+class User(db.Model):
+    """
+    Unified user model for all platform access
+    Combines best features from MVPUser and original User model
+    """
+    __tablename__ = 'users'
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    username = db.Column(db.String(50), unique=True, nullable=False)
+    # Primary identification
+    id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
 
     # User profile
-    first_name = db.Column(db.String(50), nullable=False)
-    last_name = db.Column(db.String(50), nullable=False)
+    first_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50))
 
-    # Two-tier role system
-    role = db.Column(db.String(20), nullable=False)  # 'admin' or 'employee'
-
-    # Organization relationship
-    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+    # Organization relationship (supports both FK and string for flexibility)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'))  # Proper FK relationship
+    organization = db.Column(db.String(200))  # Fallback/legacy string field
     joined_via_code = db.Column(db.String(8))  # Organization code used to join
 
-    # Status
+    # Role and permissions (flexible system supporting both patterns)
+    role = db.Column(db.String(100))  # Flexible role field (e.g., 'admin', 'employee', custom roles)
+    user_type = db.Column(db.String(20), default='participant')  # participant, admin, assessor, employee
+
+    # Status flags
     is_active = db.Column(db.Boolean, default=True)
+    is_verified = db.Column(db.Boolean, default=False)
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
 
+    # Relationships
+    assessments = db.relationship('Assessment', backref='user', lazy=True)
+    qualification_plans = db.relationship('QualificationPlan', backref='user', lazy=True)
+    learning_objectives = db.relationship('LearningObjective', backref='user', lazy=True, foreign_keys='LearningObjective.user_id')
+    module_enrollments = db.relationship('ModuleEnrollment', backref='user', lazy=True)
+
     def set_password(self, password):
+        """Hash and set user password"""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
+        """Verify password against stored hash"""
         return check_password_hash(self.password_hash, password)
 
     @property
     def full_name(self):
-        return f"{self.first_name} {self.last_name}"
+        """Get user's full name or fallback to username"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.username
 
     @property
     def is_admin(self):
-        return self.role == 'admin'
+        """Check if user has admin privileges"""
+        return self.role == 'admin' or self.user_type == 'admin'
 
     @property
     def is_employee(self):
-        return self.role == 'employee'
+        """Check if user is an employee"""
+        return self.role == 'employee' or self.user_type == 'employee'
+
+    @property
+    def is_participant(self):
+        """Check if user is a participant"""
+        return self.user_type == 'participant'
+
+    @property
+    def is_assessor(self):
+        """Check if user is an assessor"""
+        return self.user_type == 'assessor'
 
     def to_dict(self):
+        """Convert user to dictionary representation"""
         return {
             'id': self.id,
+            'uuid': self.uuid,
             'username': self.username,
+            'email': self.email,
             'first_name': self.first_name,
             'last_name': self.last_name,
             'full_name': self.full_name,
-            'role': self.role,
+            'organization': self.organization,
             'organization_id': self.organization_id,
             'joined_via_code': self.joined_via_code,
+            'role': self.role,
+            'user_type': self.user_type,
             'is_active': self.is_active,
+            'is_verified': self.is_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
@@ -407,69 +446,7 @@ class MaturityAssessment(db.Model):
 
 
 # =============================================================================
-# SECTION 3: SE-QPT USER MANAGEMENT
-# =============================================================================
-
-class User(db.Model):
-    """Unified user model for all platform access"""
-    __tablename__ = 'users'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-
-    # User profile
-    first_name = db.Column(db.String(50))
-    last_name = db.Column(db.String(50))
-    organization = db.Column(db.String(200))
-    role = db.Column(db.String(100))
-
-    # User type and permissions
-    user_type = db.Column(db.String(20), default='participant')  # participant, admin, assessor
-    is_active = db.Column(db.Boolean, default=True)
-    is_verified = db.Column(db.Boolean, default=False)
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_login = db.Column(db.DateTime)
-
-    # Relationships
-    assessments = db.relationship('Assessment', backref='user', lazy=True)
-    qualification_plans = db.relationship('QualificationPlan', backref='user', lazy=True)
-    learning_objectives = db.relationship('LearningObjective', backref='user', lazy=True, foreign_keys='LearningObjective.user_id')
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    @property
-    def full_name(self):
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        return self.username
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'uuid': self.uuid,
-            'username': self.username,
-            'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'organization': self.organization,
-            'role': self.role,
-            'user_type': self.user_type,
-            'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-# =============================================================================
-# SECTION 4: SE-QPT CORE MODELS
+# SECTION 3: SE-QPT CORE MODELS
 # =============================================================================
 
 class QualificationArchetype(db.Model):
@@ -1023,6 +1000,9 @@ SERole = RoleCluster
 
 # Alias for existing code that references CompetencyAssessment
 CompetencyAssessment = UserCompetencySurveyResult
+
+# Alias for existing code that references MVPUser (now unified into User)
+MVPUser = User
 
 
 # =============================================================================
