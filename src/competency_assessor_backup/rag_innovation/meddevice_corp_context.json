@@ -1,0 +1,38 @@
+{
+  "company_name": "MedDevice Corp",
+  "industry_domain": "Automotive",
+  "business_domain": "Medical Devices",
+  "processes": [
+    "Verification & Validation",
+    "Requirements Engineering",
+    "Functional Safety",
+    "V&V",
+    "SPICE"
+  ],
+  "methods": [
+    "V-Model",
+    "Agile",
+    "Functional Safety"
+  ],
+  "tools": [
+    "DOORS",
+    "MATLAB/Simulink",
+    "PTC Integrity"
+  ],
+  "se_maturity_level": "developing",
+  "current_challenges": [
+    "Regulatory compliance",
+    "ISO 26262 compliance",
+    "Autonomous driving",
+    "Electrification"
+  ],
+  "organizational_size": "medium",
+  "typical_project_types": [
+    "Compliance projects"
+  ],
+  "regulatory_requirements": [
+    "FDA"
+  ],
+  "learning_preferences": [],
+  "available_resources": {}
+}
