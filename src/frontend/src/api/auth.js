@@ -1,10 +1,10 @@
 import axios from './axios'
 
 export const authApi = {
-  // Authentication endpoints - Using Derik's original simple auth system
+  // Authentication endpoints - Using MVP auth system
   login: (credentials) => {
-    // Derik's /login endpoint: POST {username, password} -> {success: true/false, message: "..."}
-    return axios.post('/login', {
+    // MVP /mvp/auth/login endpoint: POST {username, password} -> {success: true/false, message: "..."}
+    return axios.post('/mvp/auth/login', {
       username: credentials.usernameOrEmail,
       password: credentials.password
     })
@@ -12,7 +12,7 @@ export const authApi = {
 
   // Admin registration - creates organization and admin user
   registerAdmin: (userData) => {
-    return axios.post('/register-admin', {
+    return axios.post('/mvp/auth/register-admin', {
       username: userData.username,
       password: userData.password,
       organization_name: userData.organizationName,
@@ -22,7 +22,7 @@ export const authApi = {
 
   // Employee registration - joins existing organization with code
   registerEmployee: (userData) => {
-    return axios.post('/register-employee', {
+    return axios.post('/mvp/auth/register-employee', {
       username: userData.username,
       password: userData.password,
       organization_code: userData.organizationCode

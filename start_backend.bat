@@ -1,10 +1,23 @@
 @echo off
-cd /d "%~dp0src\competency_assessor"
-set DATABASE_URL=postgresql://postgres:root@localhost:5432/competency_assessment
-set FLASK_APP=run.py
-set FLASK_DEBUG=1
-set OPENAI_API_KEY=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
-echo Starting Flask backend...
-echo Database: %DATABASE_URL%
-flask run
+REM SE-QPT Backend Startup Script
+REM Starts the CORRECT backend (src/backend/) on port 5000
+
+echo ========================================
+echo SE-QPT Backend Startup
+echo ========================================
+echo.
+echo Starting MAIN backend (src/backend/)...
+echo Port: 5000
+echo Database: competency_assessment
+echo.
+
+cd /d "%~dp0src\backend"
+
+REM Set environment variables
+set DATABASE_URL=postgresql://ma0349:MA0349_2025@localhost:5432/competency_assessment
+
+REM Activate virtual environment and run
+call ..\..\venv\Scripts\activate.bat
+python run.py --port 5000 --debug
+
 pause

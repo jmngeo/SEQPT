@@ -19,6 +19,9 @@ load_dotenv()
 migrate = Migrate()
 jwt = JWTManager()
 
+# Import db at module level to make it available for mvp_routes
+from models import db
+
 def create_app(config_name='development'):
     """Application factory pattern"""
     app = Flask(__name__)
@@ -37,10 +40,7 @@ def create_app(config_name='development'):
     # File upload configuration
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-    # Import and initialize database
-    from models import db
-
-    # Initialize extensions with app
+    # Initialize extensions with app (db is already imported at module level)
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)

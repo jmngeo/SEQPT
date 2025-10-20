@@ -40,7 +40,17 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:5003',
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/mvp': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/login': {
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false
       }
