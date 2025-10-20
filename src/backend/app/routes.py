@@ -483,16 +483,14 @@ def internal_error(error):
 
 
 # =============================================================================
-# BLUEPRINT 2: MVP Simplified API Routes
+# MVP SIMPLIFIED API ROUTES (merged into main_bp)
 # =============================================================================
-
-mvp_api = Blueprint('mvp_api', __name__)
 
 # =============================================================================
 # AUTHENTICATION ENDPOINTS (4 endpoints)
 # =============================================================================
 
-@mvp_api.route('/mvp/auth/login', methods=['POST'])
+@main_bp.route('/mvp/auth/login', methods=['POST'])
 def login():
     """Login for both admin and employee users"""
     try:
@@ -532,7 +530,7 @@ def login():
         return jsonify({'error': 'Login failed'}), 500
 
 
-@mvp_api.route('/mvp/auth/register-admin', methods=['POST'])
+@main_bp.route('/mvp/auth/register-admin', methods=['POST'])
 def register_admin():
     """Admin creates organization and becomes first user"""
     try:
@@ -593,7 +591,7 @@ def register_admin():
         return jsonify({'error': 'Registration failed'}), 500
 
 
-@mvp_api.route('/mvp/auth/register-employee', methods=['POST'])
+@main_bp.route('/mvp/auth/register-employee', methods=['POST'])
 def register_employee():
     """Employee joins organization with organization code"""
     try:
@@ -651,7 +649,7 @@ def register_employee():
         return jsonify({'error': 'Registration failed'}), 500
 
 
-@mvp_api.route('/api/auth/me', methods=['GET'])
+@main_bp.route('/api/auth/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
     """Get current user information"""
@@ -668,7 +666,7 @@ def get_current_user():
         current_app.logger.error(f"Get current user error: {str(e)}")
         return jsonify({'error': 'Failed to get user info'}), 500
 
-@mvp_api.route('/auth/verify', methods=['GET'])
+@main_bp.route('/auth/verify', methods=['GET'])
 @jwt_required()
 def verify_auth():
     """Verify JWT token and return user info (compatibility endpoint)"""
@@ -685,7 +683,7 @@ def verify_auth():
         current_app.logger.error(f"Auth verification error: {str(e)}")
         return jsonify({'error': 'Token verification failed'}), 401
 
-@mvp_api.route('/mvp/auth/logout', methods=['POST'])
+@main_bp.route('/mvp/auth/logout', methods=['POST'])
 def logout():
     """Logout endpoint (for MVP - since JWT tokens are stateless, this is mainly for client-side cleanup)"""
     try:
@@ -701,7 +699,7 @@ def logout():
 # ORGANIZATION MANAGEMENT ENDPOINTS (3 endpoints)
 # =============================================================================
 
-@mvp_api.route('/api/organization/setup', methods=['POST'])
+@main_bp.route('/api/organization/setup', methods=['POST'])
 @jwt_required()
 def organization_setup():
     """Update organization details (Admin only)"""
@@ -736,7 +734,7 @@ def organization_setup():
         return jsonify({'error': 'Organization setup failed'}), 500
 
 
-@mvp_api.route('/api/organization/verify-code/<code>', methods=['GET'])
+@main_bp.route('/api/organization/verify-code/<code>', methods=['GET'])
 def verify_organization_code(code):
     """Verify organization code for employee registration"""
     try:
@@ -758,7 +756,7 @@ def verify_organization_code(code):
         return jsonify({'error': 'Verification failed'}), 500
 
 
-@mvp_api.route('/api/organization/dashboard', methods=['GET'])
+@main_bp.route('/api/organization/dashboard', methods=['GET'])
 @jwt_required()
 def organization_dashboard():
     """Get organization dashboard data"""
@@ -923,7 +921,7 @@ def get_maturity_level_from_score(score):
         return 'Initial'
 
 
-@mvp_api.route('/api/organization/archetype', methods=['PUT'])
+@main_bp.route('/api/organization/archetype', methods=['PUT'])
 @jwt_required()
 def update_organization_archetype():
     """Update organization's selected archetype (Admin only)"""
@@ -957,7 +955,7 @@ def update_organization_archetype():
         return jsonify({'error': 'Failed to update archetype'}), 500
 
 
-@mvp_api.route('/api/organization/phase1-complete', methods=['PUT'])
+@main_bp.route('/api/organization/phase1-complete', methods=['PUT'])
 @jwt_required()
 def complete_phase1():
     """Mark Phase 1 as complete for organization (Admin only)"""
@@ -1002,7 +1000,7 @@ def complete_phase1():
 #       Archetype selection is handled by /api/seqpt/phase1/archetype-selection
 # =============================================================================
 
-@mvp_api.route('/api/assessments/competency', methods=['POST'])
+@main_bp.route('/api/assessments/competency', methods=['POST'])
 @jwt_required()
 def submit_competency_assessment():
     """Submit individual competency assessment (All users)"""
@@ -1032,7 +1030,7 @@ def submit_competency_assessment():
         return jsonify({'error': 'Failed to submit assessment'}), 500
 
 
-@mvp_api.route('/api/assessments/results/<user_id>', methods=['GET'])
+@main_bp.route('/api/assessments/results/<user_id>', methods=['GET'])
 @jwt_required()
 def get_assessment_results(user_id):
     """Get assessment results for a user"""
@@ -1068,7 +1066,7 @@ def get_assessment_results(user_id):
         return jsonify({'error': 'Failed to get results'}), 500
 
 
-@mvp_api.route('/api/assessments/organization-summary', methods=['GET'])
+@main_bp.route('/api/assessments/organization-summary', methods=['GET'])
 @jwt_required()
 def get_organization_assessment_summary():
     """Get organization-wide assessment summary (Admin only)"""
@@ -1113,7 +1111,7 @@ def get_organization_assessment_summary():
 # LEARNING PLAN ENDPOINTS (2 endpoints)
 # =============================================================================
 
-@mvp_api.route('/api/learning-plan/<user_id>', methods=['GET'])
+@main_bp.route('/api/learning-plan/<user_id>', methods=['GET'])
 @jwt_required()
 def get_learning_plan(user_id):
     """Get learning plan for a user"""
@@ -1137,7 +1135,7 @@ def get_learning_plan(user_id):
         return jsonify({'error': 'Failed to get learning plan'}), 500
 
 
-@mvp_api.route('/api/learning-plan/generate', methods=['POST'])
+@main_bp.route('/api/learning-plan/generate', methods=['POST'])
 @jwt_required()
 def generate_learning_plan():
     """Generate learning plan for current user"""
@@ -1191,7 +1189,7 @@ def generate_learning_plan():
 # QUESTIONNAIRE COMPATIBILITY ENDPOINTS
 # =============================================================================
 
-@mvp_api.route('/api/public/users/<string:user_id>/responses', methods=['GET'])
+@main_bp.route('/api/public/users/<string:user_id>/responses', methods=['GET'])
 def get_user_questionnaire_responses_uuid(user_id):
     """Public endpoint for questionnaire responses using UUID user IDs (compatibility)"""
     try:
