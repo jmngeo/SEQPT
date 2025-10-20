@@ -13,21 +13,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app
 
-# Import existing models for compatibility
-from models import db, User, SECompetency, SERole, QualificationArchetype, Assessment, CompetencyAssessmentResult, LearningObjective, QualificationPlan, CompanyContext, RAGTemplate, LearningModule, LearningPath, ModuleEnrollment, ModuleAssessment, LearningResource
-
-# Import MVP models for new architecture
-from mvp_models import (
-    Organization,
-    MVPUser,
-    MaturityAssessment,
-    CompetencyAssessment,
-    LearningPlan,
-    RoleMapping,
-    calculate_maturity_score,
-    select_archetype,
-    generate_learning_plan_templates,
-    generate_basic_modules
+# Import all models from unified models.py
+from models import (
+    db, User, SECompetency, SERole, QualificationArchetype, Assessment,
+    CompetencyAssessmentResult, LearningObjective, QualificationPlan,
+    CompanyContext, RAGTemplate, LearningModule, LearningPath,
+    ModuleEnrollment, ModuleAssessment, LearningResource,
+    Organization, MVPUser, MaturityAssessment, CompetencyAssessment,
+    LearningPlan, RoleMapping,
+    calculate_maturity_score, select_archetype,
+    generate_learning_plan_templates, generate_basic_modules
 )
 
 def create_application():
