@@ -9,8 +9,8 @@ import json
 import sys
 from datetime import datetime, timedelta
 
-# Import MVP models
-from mvp_models import (
+# Import from unified models
+from models import (
     db,
     Organization,
     MVPUser,
