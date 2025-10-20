@@ -379,7 +379,7 @@ const processAssessmentData = async () => {
       // Mode 1: Fetch by assessment_id from new API endpoint (persistent URL)
       console.log('Fetching results by assessment ID:', assessmentId)
 
-      const response = await axios.get(`http://localhost:5000/api/assessments/${assessmentId}/results`)
+      const response = await axios.get(`http://localhost:5003/api/assessments/${assessmentId}/results`)
 
       const data = response.data
       user_scores = data.user_scores
@@ -409,7 +409,7 @@ const processAssessmentData = async () => {
 
       console.log('Fetching results by username:', { username, organization_id, survey_type: propType })
 
-      const response = await axios.get('http://localhost:5000/get_user_competency_results', {
+      const response = await axios.get('http://localhost:5003/get_user_competency_results', {
         params: {
           username: username,
           organization_id: organization_id,
