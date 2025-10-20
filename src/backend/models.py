@@ -1,6 +1,14 @@
 """
 SE-QPT Unified Database Models
-Combines Marcel's methodology, Derik's competency assessment, and RAG-LLM innovations
+Combines Marcel's methodology, Derik's competency assessment, MVP features, and RAG-LLM innovations
+
+This file unifies three previously separate model files:
+- models.py (SE-QPT main models)
+- unified_models.py (Derik's competency assessment models
+- mvp_models.py (MVP/simplified models)
+
+Author: Integration Team
+Date: 2025-10-20
 """
 
 from flask_sqlalchemy import SQLAlchemy
@@ -8,28 +16,400 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 import json
+import hashlib
+import time
+import math
 
-# Initialize db - will be initialized by app factory
+# =============================================================================
+# DATABASE INITIALIZATION
+# =============================================================================
 db = SQLAlchemy()
 
-# =============================================================================
-# UNIFIED MODELS INTEGRATION (Derik's System)
-# Import Derik's competency and role models instead of duplicating
-# =============================================================================
-try:
-    from unified_models import Competency as SECompetency, RoleCluster as SERole
-    UNIFIED_MODELS_AVAILABLE = True
-except ImportError:
-    # Fallback: Define minimal placeholder classes if unified_models not available
-    UNIFIED_MODELS_AVAILABLE = False
-    class SECompetency:
-        """Placeholder - use unified_models.Competency"""
-        pass
-    class SERole:
-        """Placeholder - use unified_models.RoleCluster"""
-        pass
 
-# User Management Models
+# =============================================================================
+# SECTION 1: CORE ENTITIES (Derik's Foundation)
+# =============================================================================
+
+class Organization(db.Model):
+    """
+    Derik's organization table - EXTENDED for SE-QPT Phase 1
+    Uses Derik's existing table structure with SE-QPT additions
+    """
+    __tablename__ = 'organization'
+
+    # Derik's original fields
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    organization_name = db.Column(db.String(255), nullable=False, unique=True)
+    organization_public_key = db.Column(db.String(50), nullable=False, unique=True,
+                                       default='singleuser')
+
+    # SE-QPT Phase 1 extensions (NEW COLUMNS - added via migration)
+    size = db.Column(db.String(20))  # 'small', 'medium', 'large', 'enterprise'
+    maturity_score = db.Column(db.Float)  # Overall maturity score (0-5)
+    selected_archetype = db.Column(db.String(100))  # Selected qualification archetype
+    phase1_completed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @staticmethod
+    def generate_public_key(org_name):
+        """Generate unique organization public key"""
+        base = f"{org_name}_{int(time.time() * 1000)}"
+        hash_key = hashlib.sha256(base.encode()).hexdigest()[:16].upper()
+
+        # Check uniqueness
+        while Organization.query.filter_by(organization_public_key=hash_key).first():
+            base = f"{org_name}_{int(time.time() * 1000)}_{uuid.uuid4().hex[:4]}"
+            hash_key = hashlib.sha256(base.encode()).hexdigest()[:16].upper()
+
+        return hash_key
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.organization_name,
+            'organization_code': self.organization_public_key,  # Alias for frontend compatibility
+            'size': self.size,
+            'maturity_score': self.maturity_score,
+            'selected_archetype': self.selected_archetype,
+            'phase1_completed': self.phase1_completed,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class Competency(db.Model):
+    """
+    Derik's 16 SE competencies
+    Based on INCOSE competency framework
+    """
+    __tablename__ = 'competency'
+
+    id = db.Column(db.Integer, primary_key=True)
+    competency_name = db.Column(db.String(255), nullable=False)
+    competency_area = db.Column(db.String(50))  # 'Core', 'Technical', 'Management', etc.
+    description = db.Column(db.Text)
+    why_it_matters = db.Column(db.Text)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.competency_name,
+            'area': self.competency_area,
+            'description': self.description,
+            'why_it_matters': self.why_it_matters
+        }
+
+
+class RoleCluster(db.Model):
+    """
+    Derik's 16 role clusters
+    Defines SE roles across organizations
+    """
+    __tablename__ = 'role_cluster'
+
+    id = db.Column(db.Integer, primary_key=True)
+    role_cluster_name = db.Column(db.String(255), nullable=False)
+    role_cluster_description = db.Column(db.Text, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.role_cluster_name,
+            'description': self.role_cluster_description
+        }
+
+
+class AppUser(db.Model):
+    """
+    Derik's app_user table
+    User accounts managed by Derik's system
+    """
+    __tablename__ = 'app_user'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), unique=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'))
+
+    # Relationship
+    organization = db.relationship('Organization', backref='app_users', foreign_keys=[organization_id])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'organization_id': self.organization_id
+        }
+
+
+class UserCompetencySurveyResult(db.Model):
+    """
+    Derik's survey results - EXTENDED for SE-QPT gap analysis
+    Stores individual competency assessment scores with gap calculations
+    """
+    __tablename__ = 'user_se_competency_survey_results'
+
+    # Derik's original fields
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'))
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'))
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'))
+    score = db.Column(db.Integer, nullable=False)  # Current level (1-5)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # SE-QPT gap analysis extensions (NEW COLUMNS - added via migration)
+    target_level = db.Column(db.Integer)  # Target level from archetype matrix
+    gap_size = db.Column(db.Integer)  # Calculated: target_level - score
+    archetype_source = db.Column(db.String(100))  # Which archetype defined target
+    learning_plan_id = db.Column(db.String(36), db.ForeignKey('learning_plans.id'))
+
+    # Relationships
+    competency = db.relationship('Competency', backref='survey_results', foreign_keys=[competency_id])
+    organization = db.relationship('Organization', backref='survey_results', foreign_keys=[organization_id])
+    user = db.relationship('AppUser', backref='survey_results', foreign_keys=[user_id])
+    learning_plan = db.relationship('LearningPlan', backref='survey_results', foreign_keys=[learning_plan_id])
+
+    def calculate_gap(self, target_level):
+        """Calculate and update gap size"""
+        self.target_level = target_level
+        self.gap_size = max(0, target_level - self.score) if target_level else 0
+        return self.gap_size
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'organization_id': self.organization_id,
+            'competency_id': self.competency_id,
+            'competency_name': self.competency.competency_name if self.competency else None,
+            'current_level': self.score,
+            'target_level': self.target_level,
+            'gap_size': self.gap_size,
+            'archetype_source': self.archetype_source,
+            'submitted_at': self.submitted_at.isoformat() if self.submitted_at else None
+        }
+
+
+class LearningPlan(db.Model):
+    """
+    SE-QPT learning plans with RAG-LLM generated SMART objectives
+    This is SE-QPT's innovation - personalized learning objectives
+    """
+    __tablename__ = 'learning_plans'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+
+    # Learning objectives (RAG-LLM generated, stored as JSON)
+    objectives = db.Column(db.Text, nullable=False)  # JSON array of SMART objectives
+
+    # Recommended modules (JSON array)
+    recommended_modules = db.Column(db.Text)
+
+    # Plan metadata
+    estimated_duration_weeks = db.Column(db.Integer)
+    archetype_used = db.Column(db.String(100))  # Which archetype was used
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = db.relationship('AppUser', backref='learning_plans', foreign_keys=[user_id])
+    organization = db.relationship('Organization', backref='learning_plans', foreign_keys=[organization_id])
+
+    def get_objectives(self):
+        """Get objectives as Python list"""
+        if self.objectives:
+            return json.loads(self.objectives)
+        return []
+
+    def set_objectives(self, objectives_list):
+        """Set objectives from Python list"""
+        self.objectives = json.dumps(objectives_list, ensure_ascii=False)
+
+    def get_recommended_modules(self):
+        """Get recommended modules as Python list"""
+        if self.recommended_modules:
+            return json.loads(self.recommended_modules)
+        return []
+
+    def set_recommended_modules(self, modules_list):
+        """Set recommended modules from Python list"""
+        self.recommended_modules = json.dumps(modules_list, ensure_ascii=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'organization_id': self.organization_id,
+            'objectives': self.get_objectives(),
+            'recommended_modules': self.get_recommended_modules(),
+            'estimated_duration_weeks': self.estimated_duration_weeks,
+            'archetype_used': self.archetype_used,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class PhaseQuestionnaireResponse(db.Model):
+    """
+    Store simplified questionnaire responses for SE-QPT phases
+    Simpler than the full Questionnaire system - just stores JSON responses
+    """
+    __tablename__ = 'phase_questionnaire_responses'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+
+    # Questionnaire metadata
+    questionnaire_type = db.Column(db.String(50), nullable=False)  # 'maturity', 'archetype_selection'
+    phase = db.Column(db.Integer, nullable=False)  # 1, 2, 3, 4
+
+    # Response data (stored as JSON)
+    responses = db.Column(db.Text, nullable=False)  # Raw responses
+    computed_scores = db.Column(db.Text)  # Calculated scores/results
+
+    # Timestamps
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = db.relationship('AppUser', backref='questionnaire_responses', foreign_keys=[user_id])
+    organization = db.relationship('Organization', backref='questionnaire_responses', foreign_keys=[organization_id])
+
+    def get_responses(self):
+        """Get responses as Python dict"""
+        if self.responses:
+            return json.loads(self.responses)
+        return {}
+
+    def set_responses(self, responses_dict):
+        """Set responses from Python dict"""
+        self.responses = json.dumps(responses_dict, ensure_ascii=False)
+
+    def get_computed_scores(self):
+        """Get computed scores as Python dict"""
+        if self.computed_scores:
+            return json.loads(self.computed_scores)
+        return {}
+
+    def set_computed_scores(self, scores_dict):
+        """Set computed scores from Python dict"""
+        self.computed_scores = json.dumps(scores_dict, ensure_ascii=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'organization_id': self.organization_id,
+            'questionnaire_type': self.questionnaire_type,
+            'phase': self.phase,
+            'responses': self.get_responses(),
+            'computed_scores': self.get_computed_scores(),
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+        }
+
+
+# =============================================================================
+# SECTION 2: MVP USER MANAGEMENT
+# =============================================================================
+
+class MVPUser(db.Model):
+    """Simplified user model with two-tier role structure"""
+    __tablename__ = 'mvp_users'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+
+    # User profile
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+
+    # Two-tier role system
+    role = db.Column(db.String(20), nullable=False)  # 'admin' or 'employee'
+
+    # Organization relationship
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+    joined_via_code = db.Column(db.String(8))  # Organization code used to join
+
+    # Status
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
+    @property
+    def is_admin(self):
+        return self.role == 'admin'
+
+    @property
+    def is_employee(self):
+        return self.role == 'employee'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'full_name': self.full_name,
+            'role': self.role,
+            'organization_id': self.organization_id,
+            'joined_via_code': self.joined_via_code,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
+
+
+class MaturityAssessment(db.Model):
+    """Organizational maturity assessment (Admin only)"""
+    __tablename__ = 'maturity_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+
+    # Maturity scores
+    scope_score = db.Column(db.Float, nullable=False)
+    process_score = db.Column(db.Float, nullable=False)
+    overall_maturity = db.Column(db.String(20), nullable=False)  # 'Initial', 'Developing', etc.
+    overall_score = db.Column(db.Float, nullable=False)
+
+    # Raw responses (JSON storage)
+    responses = db.Column(db.Text)  # JSON string of all 33 question responses
+
+    # Timestamps
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'organization_id': self.organization_id,
+            'scope_score': self.scope_score,
+            'process_score': self.process_score,
+            'overall_maturity': self.overall_maturity,
+            'overall_score': self.overall_score,
+            'responses': json.loads(self.responses) if self.responses else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+        }
+
+
+# =============================================================================
+# SECTION 3: SE-QPT USER MANAGEMENT
+# =============================================================================
+
 class User(db.Model):
     """Unified user model for all platform access"""
     __tablename__ = 'users'
@@ -87,7 +467,11 @@ class User(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
-# SE-QPT Core Models (Marcel's Framework)
+
+# =============================================================================
+# SECTION 4: SE-QPT CORE MODELS
+# =============================================================================
+
 class QualificationArchetype(db.Model):
     """6 qualification archetype strategies from Marcel's research"""
     __tablename__ = 'qualification_archetypes'
@@ -106,14 +490,11 @@ class QualificationArchetype(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
 # =============================================================================
-# REMOVED DUPLICATE CLASSES - Now using Derik's unified models
-# =============================================================================
-# class SECompetency - DELETED: Use unified_models.Competency (Derik's 16 competencies)
-# class SERole - DELETED: Use unified_models.RoleCluster (Derik's 16 role clusters)
+# SECTION 5: ASSESSMENT MODELS
 # =============================================================================
 
-# Assessment Models
 class Assessment(db.Model):
     """Unified assessment model"""
     __tablename__ = 'assessments'
@@ -146,6 +527,7 @@ class Assessment(db.Model):
     selected_archetype = db.relationship('QualificationArchetype', backref='assessments')
     competency_results = db.relationship('CompetencyAssessmentResult', backref='assessment', lazy=True)
 
+
 class CompetencyAssessmentResult(db.Model):
     """Individual competency assessment results"""
     __tablename__ = 'competency_assessment_results'
@@ -173,7 +555,11 @@ class CompetencyAssessmentResult(db.Model):
             return max(0, self.target_level - self.current_level)
         return 0
 
-# RAG-LLM Models
+
+# =============================================================================
+# SECTION 6: RAG-LLM MODELS
+# =============================================================================
+
 class CompanyContext(db.Model):
     """Company context for RAG generation"""
     __tablename__ = 'company_contexts'
@@ -199,6 +585,7 @@ class CompanyContext(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 class LearningObjective(db.Model):
     """RAG-generated learning objectives"""
@@ -230,6 +617,7 @@ class LearningObjective(db.Model):
     # Relationships
     competency = db.relationship('Competency', backref='learning_objectives')
 
+
 class QualificationPlan(db.Model):
     """Qualification plans from 4-phase process"""
     __tablename__ = 'qualification_plans'
@@ -260,7 +648,7 @@ class QualificationPlan(db.Model):
     # Relationships
     archetype = db.relationship('QualificationArchetype', backref='qualification_plans')
 
-# RAG Template Model
+
 class RAGTemplate(db.Model):
     """Templates for RAG objective generation"""
     __tablename__ = 'rag_templates'
@@ -285,7 +673,11 @@ class RAGTemplate(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# Questionnaire System Models
+
+# =============================================================================
+# SECTION 7: QUESTIONNAIRE SYSTEM MODELS
+# =============================================================================
+
 class Questionnaire(db.Model):
     """SE-QPT Questionnaire definitions"""
     __tablename__ = 'questionnaires'
@@ -308,6 +700,7 @@ class Questionnaire(db.Model):
 
     # Relationships
     questions = db.relationship('Question', backref='questionnaire', lazy=True, cascade='all, delete-orphan')
+
 
 class Question(db.Model):
     """Individual questions within questionnaires"""
@@ -342,6 +735,7 @@ class Question(db.Model):
     options = db.relationship('QuestionOption', backref='question', lazy=True, cascade='all, delete-orphan')
     responses = db.relationship('QuestionResponse', backref='question', lazy=True)
 
+
 class QuestionOption(db.Model):
     """Answer options for multiple choice questions"""
     __tablename__ = 'question_options'
@@ -360,6 +754,7 @@ class QuestionOption(db.Model):
 
     # Metadata
     additional_data = db.Column(db.Text)  # JSON string for any extra data
+
 
 class QuestionnaireResponse(db.Model):
     """User responses to complete questionnaires"""
@@ -394,6 +789,7 @@ class QuestionnaireResponse(db.Model):
     questionnaire = db.relationship('Questionnaire', backref='responses', lazy=True)
     question_responses = db.relationship('QuestionResponse', backref='questionnaire_response', lazy=True)
 
+
 class QuestionResponse(db.Model):
     """Individual question responses"""
     __tablename__ = 'question_responses'
@@ -419,7 +815,11 @@ class QuestionResponse(db.Model):
     # Relationships
     selected_option = db.relationship('QuestionOption')
 
-# Learning Module System Models
+
+# =============================================================================
+# SECTION 8: LEARNING MODULE SYSTEM MODELS
+# =============================================================================
+
 class LearningModule(db.Model):
     """SE Competency Learning Modules"""
     __tablename__ = 'learning_modules'
@@ -464,6 +864,7 @@ class LearningModule(db.Model):
     # Relationships
     competency = db.relationship('Competency', backref='modules')
 
+
 class LearningPath(db.Model):
     """Recommended learning paths for different roles/industries"""
     __tablename__ = 'learning_paths'
@@ -495,6 +896,7 @@ class LearningPath(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 class ModuleEnrollment(db.Model):
     """User enrollment in learning modules"""
@@ -528,6 +930,7 @@ class ModuleEnrollment(db.Model):
     # Relationships
     user = db.relationship('User', backref='module_enrollments')
     module = db.relationship('LearningModule', backref='enrollments')
+
 
 class ModuleAssessment(db.Model):
     """Assessment results for learning modules"""
@@ -563,6 +966,7 @@ class ModuleAssessment(db.Model):
 
     # Relationships
     enrollment = db.relationship('ModuleEnrollment', backref='assessments')
+
 
 class LearningResource(db.Model):
     """Learning resources associated with modules"""
@@ -605,3 +1009,266 @@ class LearningResource(db.Model):
 
     # Relationships
     module = db.relationship('LearningModule', backref='resources')
+
+
+# =============================================================================
+# BACKWARD COMPATIBILITY ALIASES
+# =============================================================================
+
+# Alias for existing code that references SECompetency
+SECompetency = Competency
+
+# Alias for existing code that references SERole
+SERole = RoleCluster
+
+# Alias for existing code that references CompetencyAssessment
+CompetencyAssessment = UserCompetencySurveyResult
+
+
+# =============================================================================
+# HELPER FUNCTIONS (from unified_models.py)
+# =============================================================================
+
+def get_organization_by_code(org_code):
+    """Get organization by public key (code)"""
+    return Organization.query.filter_by(organization_public_key=org_code).first()
+
+
+def get_user_competency_gaps(user_id, organization_id=None):
+    """Get all competency gaps for a user"""
+    query = UserCompetencySurveyResult.query.filter_by(user_id=user_id)
+    if organization_id:
+        query = query.filter_by(organization_id=organization_id)
+
+    results = query.filter(UserCompetencySurveyResult.gap_size > 0).all()
+    return [r.to_dict() for r in results]
+
+
+def get_organization_completion_stats(organization_id):
+    """Get Phase 1/2 completion statistics for organization"""
+    org = Organization.query.get(organization_id)
+    if not org:
+        return None
+
+    total_users = AppUser.query.filter_by(organization_id=organization_id).count()
+
+    # Count users with completed assessments
+    users_with_assessments = db.session.query(
+        db.func.count(db.func.distinct(UserCompetencySurveyResult.user_id))
+    ).filter_by(organization_id=organization_id).scalar()
+
+    return {
+        'organization_id': organization_id,
+        'organization_name': org.organization_name,
+        'phase1_completed': org.phase1_completed,
+        'selected_archetype': org.selected_archetype,
+        'total_users': total_users,
+        'users_with_assessments': users_with_assessments or 0,
+        'completion_rate': (users_with_assessments / total_users * 100) if total_users > 0 else 0
+    }
+
+
+# =============================================================================
+# MVP BUSINESS LOGIC FUNCTIONS (from mvp_models.py)
+# =============================================================================
+
+def calculate_maturity_score(responses):
+    """
+    Calculate maturity score from 33-question assessment
+    Based on MVP architecture specification
+    """
+    # Scope questions (1-15)
+    scope_questions = responses[:15]
+    # Process questions (16-33)
+    process_questions = responses[15:33]
+
+    # Calculate averages
+    scope_score = sum(q.get('score', 0) for q in scope_questions) / len(scope_questions)
+    process_score = sum(q.get('score', 0) for q in process_questions) / len(process_questions)
+
+    # Calculate overall maturity (geometric mean)
+    overall_maturity_score = math.sqrt((scope_score ** 2 + process_score ** 2) / 2)
+
+    # Determine maturity level
+    if overall_maturity_score <= 1.5:
+        level = 'Initial'
+    elif overall_maturity_score <= 2.5:
+        level = 'Developing'
+    elif overall_maturity_score <= 3.5:
+        level = 'Defined'
+    elif overall_maturity_score <= 4.0:
+        level = 'Managed'
+    else:
+        level = 'Optimized'
+
+    return {
+        'scope_score': round(scope_score, 2),
+        'process_score': round(process_score, 2),
+        'overall_score': round(overall_maturity_score, 2),
+        'overall_maturity': level
+    }
+
+
+def select_archetype(maturity_result, preferences=None):
+    """
+    Select qualification archetype based on maturity and preferences
+    Based on MVP architecture specification
+    """
+    scope_score = maturity_result['scope_score']
+    process_score = maturity_result['process_score']
+
+    if process_score <= 1.5:
+        # Low maturity - dual selection needed
+        primary = 'SE_for_Managers'
+
+        # Determine secondary based on preferences
+        if preferences and preferences.get('goal'):
+            goal = preferences['goal']
+            if goal == 'apply_se':
+                secondary = 'Orientation_Pilot_Project'
+            elif goal == 'basic_understanding':
+                secondary = 'Common_Understanding'
+            elif goal == 'expert_training':
+                secondary = 'Certification'
+            else:
+                secondary = 'Common_Understanding'
+        else:
+            secondary = 'Common_Understanding'
+
+        return {
+            'primary': primary,
+            'secondary': secondary,
+            'customization_level': 'low',
+            'dual_selection': True
+        }
+    else:
+        # Higher maturity - single selection
+        if scope_score >= 3.0:
+            archetype = 'Continuous_Support'
+        else:
+            archetype = 'Needs_Based_Training'
+
+        return {
+            'primary': archetype,
+            'secondary': None,
+            'customization_level': 'high',
+            'dual_selection': False
+        }
+
+
+def generate_learning_plan_templates():
+    """
+    Template-based learning objectives for different archetypes
+    Based on MVP architecture specification
+    """
+    return {
+        'SE_for_Managers': [
+            'Understand Systems Engineering fundamentals',
+            'Learn SE process integration',
+            'Develop SE leadership skills',
+            'Master SE project management',
+            'Build SE team coordination capabilities'
+        ],
+        'Common_Understanding': [
+            'Gain SE awareness across organization',
+            'Understand SE terminology and concepts',
+            'Learn basic SE tools and methods',
+            'Develop SE communication skills',
+            'Understand SE lifecycle processes'
+        ],
+        'Orientation_Pilot_Project': [
+            'Complete hands-on SE project',
+            'Apply SE methods in practice',
+            'Develop practical SE skills',
+            'Build SE experience portfolio',
+            'Demonstrate SE competency'
+        ],
+        'Certification': [
+            'Prepare for SE certification',
+            'Master advanced SE concepts',
+            'Complete SE knowledge assessment',
+            'Develop expert-level SE skills',
+            'Achieve professional SE recognition'
+        ],
+        'Continuous_Support': [
+            'Maintain SE competency levels',
+            'Stay current with SE innovations',
+            'Develop advanced SE specializations',
+            'Mentor other SE professionals',
+            'Lead SE improvement initiatives'
+        ],
+        'Needs_Based_Training': [
+            'Address specific SE skill gaps',
+            'Complete targeted SE training',
+            'Develop project-specific SE capabilities',
+            'Apply SE methods to current work',
+            'Build contextual SE expertise'
+        ]
+    }
+
+
+def generate_basic_modules(archetype):
+    """
+    Basic module recommendations based on archetype
+    Based on MVP architecture specification
+    """
+    module_templates = {
+        'SE_for_Managers': [
+            'SE Management Fundamentals',
+            'SE Leadership and Teams',
+            'SE Process Integration',
+            'SE Project Planning'
+        ],
+        'Common_Understanding': [
+            'Introduction to Systems Engineering',
+            'SE Terminology and Concepts',
+            'Basic SE Tools',
+            'SE Communication'
+        ],
+        'Orientation_Pilot_Project': [
+            'SE Project Methods',
+            'Hands-on SE Practice',
+            'SE Tool Application',
+            'Project Portfolio Development'
+        ],
+        'Certification': [
+            'Advanced SE Concepts',
+            'SE Certification Prep',
+            'Expert SE Methods',
+            'Professional SE Standards'
+        ]
+    }
+
+    return module_templates.get(archetype, [])
+
+
+def calculate_duration(objectives_count):
+    """
+    Estimate learning plan duration based on objective count
+    """
+    # Simple estimation: 2-3 weeks per objective
+    base_weeks = objectives_count * 2.5
+    return max(4, min(52, int(base_weeks)))  # Minimum 4 weeks, maximum 52 weeks
+
+
+# Compatibility wrapper for role mapping (from mvp_models.py)
+class RoleMapping:
+    """
+    Compatibility wrapper for role mapping functionality
+    In unified system, this is handled by:
+    - Derik's user_role_cluster table (not yet used)
+    - PhaseQuestionnaireResponse for SE-QPT archetype selection
+
+    This is a minimal placeholder to maintain API compatibility
+    """
+    @staticmethod
+    def query_by_user(user_id):
+        """Query role mapping for a user - returns None for now"""
+        # TODO: Implement using PhaseQuestionnaireResponse or user_role_cluster
+        return None
+
+    @staticmethod
+    def create(user_id, role_id, archetype):
+        """Create role mapping - stores in PhaseQuestionnaireResponse"""
+        # TODO: Implement using PhaseQuestionnaireResponse
+        pass
