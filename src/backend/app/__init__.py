@@ -60,7 +60,7 @@ def create_app(config_name='development'):
     )
 
     # Register blueprints
-    from app.routes import main_bp
+    from app.routes import main_bp, mvp_api  # Both blueprints now in routes.py
     # from app.auth import auth_bp  # Disabled - using MVP auth system instead
     from app.api import api_bp
     from app.admin import admin_bp
@@ -69,12 +69,15 @@ def create_app(config_name='development'):
     from app.competency_service import competency_service_bp
 
     app.register_blueprint(main_bp)
+    app.register_blueprint(mvp_api)  # MVP routes now in routes.py
     # app.register_blueprint(auth_bp, url_prefix='/auth')  # Disabled - using MVP auth system instead
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(questionnaire_bp, url_prefix='/api')
     app.register_blueprint(module_bp, url_prefix='/api')
     app.register_blueprint(competency_service_bp, url_prefix='/api/competency')
+
+    print("Main routes and MVP API routes registered successfully (unified)")
 
     # Import Derik's routes - Enable competency assessor integration
     try:
@@ -92,15 +95,6 @@ def create_app(config_name='development'):
         print("SE-QPT RAG routes registered successfully")
     except Exception as e:
         print(f"Warning: SE-QPT RAG routes not available: {e}")
-        pass
-
-    # Import MVP routes for simplified architecture
-    try:
-        from app.mvp_routes import mvp_api
-        app.register_blueprint(mvp_api)
-        print("MVP API routes registered successfully")
-    except Exception as e:
-        print(f"Warning: MVP API routes not available: {e}")
         pass
 
     # Error handlers
