@@ -421,7 +421,7 @@ const loadRoles = async () => {
   try {
     loading.value = true
     // Use SE-QPT's backend API endpoint
-    const response = await fetch('http://localhost:5000/roles')
+    const response = await fetch('http://localhost:5003/roles')
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -524,7 +524,7 @@ const analyzeTaskDescription = async () => {
     }
 
     // Call Derik's /findProcesses endpoint with correct payload format
-    const response = await fetch('http://localhost:5000/findProcesses', {
+    const response = await fetch('http://localhost:5003/findProcesses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -595,7 +595,7 @@ const loadCompetenciesForRoles = async () => {
     }
 
     // Get competencies for the selected roles using Derik's API format
-    const response = await fetch('http://localhost:5000/get_required_competencies_for_roles', {
+    const response = await fetch('http://localhost:5003/get_required_competencies_for_roles', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -643,7 +643,7 @@ const proceedToSurvey = async () => {
     loading.value = true
 
     // Load all 16 competencies for task-based assessment
-    const competencyResponse = await fetch('http://localhost:5000/competencies')
+    const competencyResponse = await fetch('http://localhost:5003/competencies')
     if (!competencyResponse.ok) {
       throw new Error('Failed to load competencies')
     }
@@ -688,7 +688,7 @@ const startFullAssessment = async () => {
     loading.value = true
 
     // Load all competencies first
-    const competencyResponse = await fetch('http://localhost:5000/competencies')
+    const competencyResponse = await fetch('http://localhost:5003/competencies')
     if (!competencyResponse.ok) {
       throw new Error('Failed to load competencies')
     }
@@ -749,7 +749,7 @@ const loadAllCompetencyData = async () => {
     // Fetch indicators for each competency individually
     const indicatorPromises = competencies.value.map(async (comp) => {
       console.log(`Fetching indicators for competency ${comp.competency_id}`)
-      const response = await fetch(`http://localhost:5000/get_competency_indicators_for_competency/${comp.competency_id}`)
+      const response = await fetch(`http://localhost:5003/get_competency_indicators_for_competency/${comp.competency_id}`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -929,7 +929,7 @@ const submitSurvey = async () => {
       console.log('Using task-based username:', username)
     } else {
       // Create a new survey user for role-based and full-competency assessments
-      const newUserResponse = await fetch('http://localhost:5000/new_survey_user', {
+      const newUserResponse = await fetch('http://localhost:5003/new_survey_user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1007,7 +1007,7 @@ const submitSurvey = async () => {
     console.log('Submitting survey data:', surveyData)
 
     // Step 6: Submit to Derik's API
-    const response = await fetch('http://localhost:5000/submit_survey', {
+    const response = await fetch('http://localhost:5003/submit_survey', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
