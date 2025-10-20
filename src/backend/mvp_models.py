@@ -45,7 +45,7 @@ class MVPUser(db.Model):
     role = db.Column(db.String(20), nullable=False)  # 'admin' or 'employee'
 
     # Organization relationship
-    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
     joined_via_code = db.Column(db.String(8))  # Organization code used to join
 
     # Status
@@ -99,7 +99,7 @@ class MaturityAssessment(db.Model):
     __tablename__ = 'maturity_assessments'
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
 
     # Maturity scores
     scope_score = db.Column(db.Float, nullable=False)
