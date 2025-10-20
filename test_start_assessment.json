@@ -1,0 +1,15 @@
+{
+  "org_id": 24,
+  "admin_user_id": 1,
+  "employee_name": "John Doe Test",
+  "role_ids": [86, 88, 90],
+  "competencies": [
+    {"competencyId": 1, "competencyName": "Systems Thinking", "competencyArea": "Core", "requiredLevel": 4, "description": "Systems thinking application", "whyItMatters": "Essential for SE"},
+    {"competencyId": 4, "competencyName": "Lifecycle Consideration", "competencyArea": "Core", "requiredLevel": 4},
+    {"competencyId": 5, "competencyName": "Customer / Value Orientation", "competencyArea": "Core", "requiredLevel": 4},
+    {"competencyId": 6, "competencyName": "Systems Modelling and Analysis", "competencyArea": "Core", "requiredLevel": 4},
+    {"competencyId": 7, "competencyName": "Communication", "competencyArea": "Social / Personal", "requiredLevel": 4},
+    {"competencyId": 8, "competencyName": "Leadership", "competencyArea": "Social / Personal", "requiredLevel": 4}
+  ],
+  "assessment_type": "phase2_employee"
+}

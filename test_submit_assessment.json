@@ -1,0 +1,11 @@
+{
+  "assessment_id": 24,
+  "answers": [
+    {"competency_id": 1, "selected_groups": [1, 2, 3], "current_level": 4},
+    {"competency_id": 4, "selected_groups": [1, 2], "current_level": 2},
+    {"competency_id": 5, "selected_groups": [1], "current_level": 1},
+    {"competency_id": 6, "selected_groups": [1, 2, 3], "current_level": 4},
+    {"competency_id": 7, "selected_groups": [1, 2, 3, 4], "current_level": 6},
+    {"competency_id": 8, "selected_groups": [1, 2], "current_level": 2}
+  ]
+}

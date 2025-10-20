@@ -13,7 +13,17 @@
       "Bash(cp:*)",
       "Bash(../../venv/Scripts/activate)",
       "Bash(../../../venv/Scripts/activate)",
-      "Bash(./../../venv/Scripts/activate)"
+      "Bash(./../../venv/Scripts/activate)",
+      "Bash(dir \"C:\\Users\\jomon\\Documents\\MyDocuments\\Development\\Thesis\\backups\\SE-QPT-Master-Thesis\\src\\frontend\\src\\views\\phases\" /b)",
+      "Bash(dir \"C:\\Users\\jomon\\Documents\\MyDocuments\\Development\\Thesis\\backups\\SE-QPT-Master-Thesis\\src\\frontend\\src\\components\" /b)",
+      "Read(//c/Users/jomon/Documents/MyDocuments/Development/Thesis/backups/SE-QPT-Master-Thesis/src/frontend/src/views/phases/**)",
+      "Read(//c/Users/jomon/Documents/MyDocuments/Development/Thesis/backups/SE-QPT-Master-Thesis/src/frontend/src/components/phase2/**)",
+      "Read(//c/Users/jomon/Documents/MyDocuments/Development/Thesis/backups/SE-QPT-Master-Thesis/src/frontend/src/components/assessment/**)",
+      "Bash(test -f \"C:\\Users\\jomon\\Documents\\MyDocuments\\Development\\Thesis\\SE-QPT-Master-Thesis\\src\\frontend\\src\\components\\phase2\\DerikRoleSelector.vue\")",
+      "Bash(git add -A)",
+      "Bash(npm run dev)",
+      "Bash(timeout 3)",
+      "Bash(npm install vuetify vue3-toastify @mdi/font)"
     ],
     "deny": [],
     "ask": []

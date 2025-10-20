@@ -1,0 +1,70 @@
+SE-QPT Database Migrations
+==========================
+
+This directory contains Alembic migration files for the SE-QPT database schema.
+
+## Setup
+
+1. Ensure PostgreSQL is installed and running
+2. Create a database for SE-QPT:
+   ```sql
+   CREATE DATABASE seqpt;
+   CREATE USER seqpt_user WITH PASSWORD 'seqpt_pass';
+   GRANT ALL PRIVILEGES ON DATABASE seqpt TO seqpt_user;
+   ```
+
+3. Set environment variables:
+   ```bash
+   export DATABASE_URL="postgresql://seqpt_user:seqpt_pass@localhost:5432/seqpt"
+   export SECRET_KEY="your-secret-key"
+   export JWT_SECRET_KEY="your-jwt-secret"
+   ```
+
+## Migration Commands
+
+Initialize migrations (first time only):
+```bash
+cd src/backend
+python -m flask db init
+```
+
+Create a new migration:
+```bash
+python -m flask db migrate -m "Description of changes"
+```
+
+Apply migrations:
+```bash
+python -m flask db upgrade
+```
+
+Initialize database with sample data:
+```bash
+python run.py --init-db
+```
+
+## Database Schema
+
+The database includes tables for:
+- Users and authentication
+- SE competencies and roles
+- Assessments and results
+- Qualification plans and archetypes
+- Learning objectives and modules
+- Company context and RAG system data
+- Progress tracking
+
+## Development Workflow
+
+1. Make changes to models in `models/__init__.py`
+2. Generate migration: `flask db migrate -m "description"`
+3. Review migration file in `migrations/versions/`
+4. Apply migration: `flask db upgrade`
+5. Test changes
+
+## Production Deployment
+
+For production deployment:
+1. Set production database URL
+2. Apply migrations: `flask db upgrade`
+3. No need to run `--init-db` in production
