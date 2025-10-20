@@ -23,7 +23,11 @@
       "Bash(git add -A)",
       "Bash(npm run dev)",
       "Bash(timeout 3)",
-      "Bash(npm install vuetify vue3-toastify @mdi/font)"
+      "Bash(npm install vuetify vue3-toastify @mdi/font)",
+      "Bash(dir src /b)",
+      "Bash(dir *.py /b)",
+      "Bash(git commit -m \"Backup before codebase refactoring - Phase 0-4\n\n- Before unifying 3 model files into one\n- Before consolidating 4+ route files\n- Before archiving legacy competency_assessor backend\n- All debugging complete, ready for cleanup\")",
+      "Bash(git tag \"pre-refactor-20251020\")"
     ],
     "deny": [],
     "ask": []
