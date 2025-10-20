@@ -10,8 +10,8 @@ import sys
 import os
 import json
 
-# Add RAG innovation components to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../competency_assessor/rag_innovation'))
+# Add RAG services to path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'services', 'rag'))
 
 from company_context_extractor import CompanyContextExtractor, CompanyPMTContext
 from prompt_engineering import ObjectivePromptEngineer

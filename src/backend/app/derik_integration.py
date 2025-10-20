@@ -11,23 +11,13 @@ import sys
 import json
 import traceback
 
-# Add competency assessor path - add both parent and app directories
-competency_assessor_path = os.path.join(os.path.dirname(__file__), '..', '..', 'competency_assessor')
-competency_assessor_app_path = os.path.join(competency_assessor_path, 'app')
-
-# Insert at beginning to prioritize over other paths
-if competency_assessor_path not in sys.path:
-    sys.path.insert(0, competency_assessor_path)
-if competency_assessor_app_path not in sys.path:
-    sys.path.insert(0, competency_assessor_app_path)
-
+# Import LLM pipeline from local services
 try:
-    # Import directly from the module (since app path is in sys.path)
-    import llm_process_identification_pipeline
+    from app.services.llm_pipeline import llm_process_identification_pipeline
     create_pipeline = llm_process_identification_pipeline.create_pipeline
 
-    # from rank_competency_indicators_llm import RankCompetencyIndicators
-    # from most_similar_role import FindMostSimilarRole
+    # from app.services.llm_pipeline.rank_competency_indicators_llm import RankCompetencyIndicators
+    # from app.services.llm_pipeline.most_similar_role import FindMostSimilarRole
     DERIK_AVAILABLE = True
     print("[SUCCESS] Derik's competency assessor integration enabled (RAG-LLM pipeline loaded)")
 except ImportError as e:

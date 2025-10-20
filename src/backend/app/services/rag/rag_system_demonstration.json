@@ -1,0 +1,464 @@
+{
+  "system_demonstration": "SE-QPT RAG-LLM Learning Objective Generation",
+  "demonstration_timestamp": "2025-09-22T19:33:01.250942",
+  "test_scenarios": [
+    {
+      "company_name": "AutoTech Systems",
+      "description": "AutoTech Systems is an automotive OEM developing autonomous vehicles. We use MATLAB/Simulink for modeling, DOORS for requirements management, and follow ISO 26262 for functional safety. Our main challenges include complex sensor integration and safety certification for self-driving features.",
+      "competencies": [
+        [
+          "Systemic thinking",
+          "System engineer"
+        ],
+        [
+          "Requirements management",
+          "Requirements engineer"
+        ],
+        [
+          "Technical leadership",
+          "Senior engineer"
+        ]
+      ],
+      "archetype": "Needs-based, project-oriented training"
+    },
+    {
+      "company_name": "MedDevice Innovations",
+      "description": "MedDevice Innovations develops cardiac monitoring medical devices. We follow FDA regulations and IEC 62304 standards. Our main challenges are clinical validation and regulatory approval processes.",
+      "competencies": [
+        [
+          "Requirements management",
+          "Requirements engineer"
+        ],
+        [
+          "System safety",
+          "Safety engineer"
+        ]
+      ],
+      "archetype": "Common basic understanding"
+    }
+  ],
+  "generated_objectives": {
+    "AutoTech Systems": [
+      {
+        "objective": "At the end of 2 weeks, participants will be able to identify and analyze system boundaries, interfaces, and emergent properties in AutoTech Systems's Autonomous Systems architecture by creating system models using DOORS so that Complex system integration challenges are better understood and resolved.",
+        "quality_assessment": {
+          "overall_quality": 0.646,
+          "smart_average": 0.61,
+          "meets_threshold": false,
+          "individual_scores": {
+            "specific": 0.75,
+            "measurable": 0.8,
+            "achievable": 0.5,
+            "relevant": 0.0,
+            "time_bound": 1.0,
+            "company_alignment": 0.7,
+            "incose_compliance": 1.0,
+            "business_value": 0.4
+          }
+        },
+        "company_context": {
+          "name": "AutoTech Systems",
+          "industry": "Automotive",
+          "maturity": "developing",
+          "processes": [
+            "Requirements Engineering",
+            "Risk Management",
+            "Project Management"
+          ],
+          "tools": [
+            "DOORS",
+            "MATLAB/Simulink",
+            "SysML"
+          ],
+          "challenges": [
+            "Complex system integration",
+            "Regulatory compliance"
+          ]
+        },
+        "generation_metadata": {
+          "competency": "Systemic thinking",
+          "role": "System engineer",
+          "archetype": "Needs-based, project-oriented training",
+          "iterations_used": 3,
+          "template_sources": 5,
+          "generation_timestamp": "2025-09-22T19:33:01.128584"
+        },
+        "iteration_history": [
+          {
+            "iteration": 1,
+            "objective": "At the end of 4 hours, participants will understand system boundaries in AutoTech Systems's Autonomous Systems projects.",
+            "quality_score": 0.35700000000000004,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 2,
+            "objective": "At the end of 1 week, participants will be able to identify system boundaries and interfaces in AutoTech Systems's Autonomous Systems architecture by analyzing system models using DOORS.",
+            "quality_score": 0.522,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 3,
+            "objective": "At the end of 2 weeks, participants will be able to identify and analyze system boundaries, interfaces, and emergent properties in AutoTech Systems's Autonomous Systems architecture by creating system models using DOORS so that Complex system integration challenges are better understood and resolved.",
+            "quality_score": 0.646,
+            "meets_threshold": false
+          }
+        ],
+        "recommendations": {
+          "strengths": [
+            "Measurable: Contains measurable action verbs; Describes observable outcomes; Specifies deliverables/artifacts",
+            "Time-bound: Contains explicit timeframe; Timeframe appropriate for archetype",
+            "INCOSE Compliance: General alignment with SE principles; Strong INCOSE competency alignment (3 relevant terms)"
+          ],
+          "improvement_plan": [
+            "Include value-oriented language (improve, reduce, enable, etc.)",
+            "Add success criteria (successfully, effectively, etc.)",
+            "Include clear business value or benefit",
+            "Specify concrete business outcomes",
+            "Explicitly mention Systemic thinking competency"
+          ]
+        }
+      },
+      {
+        "objective": "At the end of 3 weeks, participants will be able to elicit, analyze, and document stakeholder requirements for AutoTech Systems's Autonomous Systems projects by applying Requirements Engineering processes using DOORS so that Complex system integration issues are reduced and project success is improved.",
+        "quality_assessment": {
+          "overall_quality": 0.756,
+          "smart_average": 0.71,
+          "meets_threshold": false,
+          "individual_scores": {
+            "specific": 0.75,
+            "measurable": 0.8,
+            "achievable": 0.5,
+            "relevant": 0.5,
+            "time_bound": 1.0,
+            "company_alignment": 0.85,
+            "incose_compliance": 1.0,
+            "business_value": 0.6000000000000001
+          }
+        },
+        "company_context": {
+          "name": "AutoTech Systems",
+          "industry": "Automotive",
+          "maturity": "developing",
+          "processes": [
+            "Requirements Engineering",
+            "Risk Management",
+            "Project Management"
+          ],
+          "tools": [
+            "DOORS",
+            "MATLAB/Simulink",
+            "SysML"
+          ],
+          "challenges": [
+            "Complex system integration",
+            "Regulatory compliance"
+          ]
+        },
+        "generation_metadata": {
+          "competency": "Requirements management",
+          "role": "Requirements engineer",
+          "archetype": "Needs-based, project-oriented training",
+          "iterations_used": 3,
+          "template_sources": 5,
+          "generation_timestamp": "2025-09-22T19:33:01.160271"
+        },
+        "iteration_history": [
+          {
+            "iteration": 1,
+            "objective": "Participants will learn requirements engineering using DOORS.",
+            "quality_score": 0.325,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 2,
+            "objective": "At the end of 2 weeks, participants will demonstrate requirements elicitation and documentation for AutoTech Systems's Autonomous Systems projects by creating requirement specifications using DOORS.",
+            "quality_score": 0.6,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 3,
+            "objective": "At the end of 3 weeks, participants will be able to elicit, analyze, and document stakeholder requirements for AutoTech Systems's Autonomous Systems projects by applying Requirements Engineering processes using DOORS so that Complex system integration issues are reduced and project success is improved.",
+            "quality_score": 0.756,
+            "meets_threshold": false
+          }
+        ],
+        "recommendations": {
+          "strengths": [
+            "Measurable: Contains measurable action verbs; Describes observable outcomes; Specifies deliverables/artifacts",
+            "Time-bound: Contains explicit timeframe; Timeframe appropriate for archetype",
+            "Company Alignment: References 2 company processes; References 1 company tools; Addresses 2 company challenges"
+          ],
+          "improvement_plan": [
+            "Add success criteria (successfully, effectively, etc.)",
+            "Ensure alignment with Requirements management competency",
+            "Specify concrete business outcomes",
+            "Include Automotive-specific content",
+            "Consider reducing complexity for developing SE maturity"
+          ]
+        }
+      },
+      {
+        "objective": "At the end of 4 weeks, participants will be able to apply Technical leadership principles effectively in AutoTech Systems's Automotive environment by implementing V-Model practices so that team performance and project outcomes are enhanced.",
+        "quality_assessment": {
+          "overall_quality": 0.6699999999999999,
+          "smart_average": 0.8,
+          "meets_threshold": false,
+          "individual_scores": {
+            "specific": 0.75,
+            "measurable": 1.0,
+            "achievable": 0.5,
+            "relevant": 0.75,
+            "time_bound": 1.0,
+            "company_alignment": 0.2,
+            "incose_compliance": 0.85,
+            "business_value": 0.65
+          }
+        },
+        "company_context": {
+          "name": "AutoTech Systems",
+          "industry": "Automotive",
+          "maturity": "developing",
+          "processes": [
+            "Requirements Engineering",
+            "Risk Management",
+            "Project Management"
+          ],
+          "tools": [
+            "DOORS",
+            "MATLAB/Simulink",
+            "SysML"
+          ],
+          "challenges": [
+            "Complex system integration",
+            "Regulatory compliance"
+          ]
+        },
+        "generation_metadata": {
+          "competency": "Technical leadership",
+          "role": "Senior engineer",
+          "archetype": "Needs-based, project-oriented training",
+          "iterations_used": 3,
+          "template_sources": 5,
+          "generation_timestamp": "2025-09-22T19:33:01.191214"
+        },
+        "iteration_history": [
+          {
+            "iteration": 1,
+            "objective": "Participants will apply Technical leadership in their work at AutoTech Systems.",
+            "quality_score": 0.305,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 2,
+            "objective": "At the end of 3 weeks, participants will effectively apply Technical leadership principles in AutoTech Systems's Automotive projects by implementing best practices.",
+            "quality_score": 0.5509999999999999,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 3,
+            "objective": "At the end of 4 weeks, participants will be able to apply Technical leadership principles effectively in AutoTech Systems's Automotive environment by implementing V-Model practices so that team performance and project outcomes are enhanced.",
+            "quality_score": 0.6699999999999999,
+            "meets_threshold": false
+          }
+        ],
+        "recommendations": {
+          "strengths": [
+            "Measurable: Contains measurable action verbs; Describes observable outcomes; Includes success criteria; Specifies deliverables/artifacts",
+            "Time-bound: Contains explicit timeframe; Timeframe appropriate for archetype",
+            "INCOSE Compliance: General alignment with SE principles; Moderate INCOSE competency alignment (1 relevant terms)"
+          ],
+          "improvement_plan": [
+            "Ensure referenced tools are available to participants",
+            "Ensure relevance to Senior engineer role",
+            "Include company-specific processes",
+            "Include specific tools or processes used by the company",
+            "Include company-specific tools"
+          ]
+        }
+      }
+    ],
+    "MedDevice Innovations": [
+      {
+        "objective": "At the end of 3 weeks, participants will be able to elicit, analyze, and document stakeholder requirements for MedDevice Innovations's Medical Devices projects by applying Verification & Validation processes using DOORS so that Regulatory compliance issues are reduced and project success is improved.",
+        "quality_assessment": {
+          "overall_quality": 0.687,
+          "smart_average": 0.62,
+          "meets_threshold": false,
+          "individual_scores": {
+            "specific": 0.75,
+            "measurable": 0.8,
+            "achievable": 0.7,
+            "relevant": 0.25,
+            "time_bound": 0.6,
+            "company_alignment": 0.7,
+            "incose_compliance": 1.0,
+            "business_value": 0.7500000000000001
+          }
+        },
+        "company_context": {
+          "name": "MedDevice Innovations",
+          "industry": "Automotive",
+          "maturity": "developing",
+          "processes": [
+            "Verification & Validation",
+            "Requirements Engineering",
+            "Functional Safety"
+          ],
+          "tools": [
+            "DOORS",
+            "MATLAB/Simulink",
+            "PTC Integrity"
+          ],
+          "challenges": [
+            "Regulatory compliance",
+            "Rapid technology change"
+          ]
+        },
+        "generation_metadata": {
+          "competency": "Requirements management",
+          "role": "Requirements engineer",
+          "archetype": "Common basic understanding",
+          "iterations_used": 3,
+          "template_sources": 5,
+          "generation_timestamp": "2025-09-22T19:33:01.221481"
+        },
+        "iteration_history": [
+          {
+            "iteration": 1,
+            "objective": "Participants will learn requirements engineering using DOORS.",
+            "quality_score": 0.325,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 2,
+            "objective": "At the end of 2 weeks, participants will demonstrate requirements elicitation and documentation for MedDevice Innovations's Medical Devices projects by creating requirement specifications using DOORS.",
+            "quality_score": 0.472,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 3,
+            "objective": "At the end of 3 weeks, participants will be able to elicit, analyze, and document stakeholder requirements for MedDevice Innovations's Medical Devices projects by applying Verification & Validation processes using DOORS so that Regulatory compliance issues are reduced and project success is improved.",
+            "quality_score": 0.687,
+            "meets_threshold": false
+          }
+        ],
+        "recommendations": {
+          "strengths": [
+            "Measurable: Contains measurable action verbs; Describes observable outcomes; Specifies deliverables/artifacts",
+            "INCOSE Compliance: General alignment with SE principles; Strong INCOSE competency alignment (2 relevant terms)"
+          ],
+          "improvement_plan": [
+            "Add success criteria (successfully, effectively, etc.)",
+            "Ensure relevance to Requirements engineer role",
+            "Ensure alignment with Requirements management competency",
+            "Include Automotive-specific content",
+            "Consider timeframe appropriate for Common basic understanding"
+          ]
+        }
+      },
+      {
+        "objective": "At the end of 4 weeks, participants will be able to apply System safety principles effectively in MedDevice Innovations's Automotive environment by implementing V-Model practices so that team performance and project outcomes are enhanced.",
+        "quality_assessment": {
+          "overall_quality": 0.5820000000000001,
+          "smart_average": 0.72,
+          "meets_threshold": false,
+          "individual_scores": {
+            "specific": 0.75,
+            "measurable": 1.0,
+            "achievable": 0.5,
+            "relevant": 0.75,
+            "time_bound": 0.6,
+            "company_alignment": 0.0,
+            "incose_compliance": 0.7,
+            "business_value": 0.8
+          }
+        },
+        "company_context": {
+          "name": "MedDevice Innovations",
+          "industry": "Automotive",
+          "maturity": "developing",
+          "processes": [
+            "Verification & Validation",
+            "Requirements Engineering",
+            "Functional Safety"
+          ],
+          "tools": [
+            "DOORS",
+            "MATLAB/Simulink",
+            "PTC Integrity"
+          ],
+          "challenges": [
+            "Regulatory compliance",
+            "Rapid technology change"
+          ]
+        },
+        "generation_metadata": {
+          "competency": "System safety",
+          "role": "Safety engineer",
+          "archetype": "Common basic understanding",
+          "iterations_used": 3,
+          "template_sources": 5,
+          "generation_timestamp": "2025-09-22T19:33:01.250942"
+        },
+        "iteration_history": [
+          {
+            "iteration": 1,
+            "objective": "Participants will apply System safety in their work at MedDevice Innovations.",
+            "quality_score": 0.295,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 2,
+            "objective": "At the end of 3 weeks, participants will effectively apply System safety principles in MedDevice Innovations's Automotive projects by implementing best practices.",
+            "quality_score": 0.463,
+            "meets_threshold": false
+          },
+          {
+            "iteration": 3,
+            "objective": "At the end of 4 weeks, participants will be able to apply System safety principles effectively in MedDevice Innovations's Automotive environment by implementing V-Model practices so that team performance and project outcomes are enhanced.",
+            "quality_score": 0.5820000000000001,
+            "meets_threshold": false
+          }
+        ],
+        "recommendations": {
+          "strengths": [
+            "Measurable: Contains measurable action verbs; Describes observable outcomes; Includes success criteria; Specifies deliverables/artifacts",
+            "Business Value: Includes explicit business benefit; Contains 1 value-oriented terms; Addresses 2 business outcomes"
+          ],
+          "improvement_plan": [
+            "Ensure referenced tools are available to participants",
+            "Include company-specific processes",
+            "Address specific company challenges",
+            "Ensure relevance to Safety engineer role",
+            "Include specific tools or processes used by the company"
+          ]
+        }
+      }
+    ]
+  },
+  "system_statistics": {
+    "total_objectives_generated": 5,
+    "objectives_meeting_threshold": 0,
+    "success_rate": 0.0,
+    "average_quality_score": 0.6682,
+    "quality_threshold": 0.85,
+    "system_status": "operational",
+    "last_generation": {
+      "timestamp": "2025-09-22T19:33:01.250942",
+      "competency": "System safety",
+      "quality": 0.5820000000000001,
+      "meets_threshold": false
+    }
+  },
+  "innovation_summary": {
+    "key_components": [
+      "Company PMT context extraction",
+      "RAG-enhanced template retrieval",
+      "Archetype-specific prompt engineering",
+      "SMART criteria validation with 85% threshold",
+      "Iterative quality improvement"
+    ],
+    "core_innovation": "First application of RAG-LLM for SE qualification planning",
+    "business_value": "Generates company-specific learning objectives that address real challenges"
+  }
+}
