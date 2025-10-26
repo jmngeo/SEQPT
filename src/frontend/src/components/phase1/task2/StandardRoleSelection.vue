@@ -185,6 +185,7 @@ const handleContinue = async () => {
       return {
         standardRoleId: roleId,
         standardRoleName: role.name,
+        standard_role_description: role.description,  // Include description
         orgRoleName: customNames.value[roleId] || null,
         identificationMethod: 'STANDARD',
         participatingInTraining: true
@@ -202,9 +203,10 @@ const handleContinue = async () => {
     console.log('[StandardRoleSelection] Saved:', response)
 
     // Emit completion with selected roles
+    // IMPORTANT: response.roles contains the actual array, not response.data
     emit('complete', {
-      roles: response.data,
-      count: rolesToSave.length
+      roles: response.roles,
+      count: response.count
     })
   } catch (error) {
     console.error('[StandardRoleSelection] Save failed:', error)
@@ -219,19 +221,28 @@ onMounted(() => {
   if (props.existingRoles && props.existingRoles.roles && props.existingRoles.roles.length > 0) {
     console.log('[StandardRoleSelection] Loading existing roles:', props.existingRoles)
 
+    // Use Set to prevent duplicate role IDs
+    const uniqueRoleIds = new Set()
+
     // Pre-fill selected role IDs and custom names
     props.existingRoles.roles.forEach(role => {
       if (role.standardRoleId) {
-        selectedRoleIds.value.push(role.standardRoleId)
+        // Only add if not already present (prevents duplicates from database)
+        if (!uniqueRoleIds.has(role.standardRoleId)) {
+          uniqueRoleIds.add(role.standardRoleId)
+          selectedRoleIds.value.push(role.standardRoleId)
 
-        // If there's an organization-specific name, store it
-        if (role.orgRoleName) {
-          customNames.value[role.standardRoleId] = role.orgRoleName
+          // If there's an organization-specific name, store it (prefer first occurrence)
+          if (role.orgRoleName && !customNames.value[role.standardRoleId]) {
+            customNames.value[role.standardRoleId] = role.orgRoleName
+          }
+        } else {
+          console.warn(`[StandardRoleSelection] DUPLICATE DETECTED: Role ID ${role.standardRoleId} (${role.standardRoleName}) already loaded - skipping duplicate`)
         }
       }
     })
 
-    console.log('[StandardRoleSelection] Pre-filled', selectedRoleIds.value.length, 'roles')
+    console.log('[StandardRoleSelection] Pre-filled', selectedRoleIds.value.length, 'unique roles')
   }
 })
 </script>

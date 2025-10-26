@@ -99,6 +99,23 @@ class Competency(db.Model):
         }
 
 
+class CompetencyIndicator(db.Model):
+    """
+    Derik's competency indicators - specific observable behaviors for each competency
+    Organized by proficiency level (1-4)
+    """
+    __tablename__ = 'competency_indicators'
+
+    id = db.Column(db.Integer, primary_key=True)
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=True)
+    level = db.Column(db.String(50), nullable=True)  # Can hold 'verstehen', 'beherrschen', 'kennen', 'anwenden'
+    indicator_en = db.Column(db.Text, nullable=True)  # English indicator text
+    indicator_de = db.Column(db.Text, nullable=True)  # German indicator text
+
+    # Relationship to Competency
+    competency = db.relationship('Competency', backref=db.backref('indicators', cascade="all, delete-orphan", lazy=True))
+
+
 class RoleCluster(db.Model):
     """
     Derik's 16 role clusters
@@ -118,27 +135,218 @@ class RoleCluster(db.Model):
         }
 
 
-class AppUser(db.Model):
+# =============================================================================
+# SECTION 2: ISO/IEC 15288 PROCESS MODELS (Derik's Task-Based Role Mapping)
+# =============================================================================
+
+class IsoSystemLifeCycleProcesses(db.Model):
     """
-    Derik's app_user table
-    User accounts managed by Derik's system
+    ISO/IEC 15288 System Life Cycle Process Groups
+    Four main process groups: Agreement, Organizational, Technical, Project
     """
-    __tablename__ = 'app_user'
+    __tablename__ = 'iso_system_life_cycle_processes'
 
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(255), unique=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'))
+    name = db.Column(db.String(255), nullable=False)
 
-    # Relationship
-    organization = db.relationship('Organization', backref='app_users', foreign_keys=[organization_id])
+    # Relationships
+    processes = db.relationship('IsoProcesses', backref='life_cycle_process', lazy=True)
 
     def to_dict(self):
         return {
             'id': self.id,
-            'username': self.username,
+            'name': self.name
+        }
+
+
+class IsoProcesses(db.Model):
+    """
+    ISO/IEC 15288 System Engineering Processes
+    Approximately 30 processes defined in the standard
+    """
+    __tablename__ = 'iso_processes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    life_cycle_process_id = db.Column(db.Integer, db.ForeignKey('iso_system_life_cycle_processes.id'))
+
+    # Relationships removed: IsoActivities model was deleted in Phase 2A cleanup
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'life_cycle_process_id': self.life_cycle_process_id
+        }
+
+
+class RoleProcessMatrix(db.Model):
+    """
+    Maps SE role clusters to ISO processes
+    Defines which processes each role is involved in and at what level
+    """
+    __tablename__ = 'role_process_matrix'
+
+    id = db.Column(db.Integer, primary_key=True)
+    role_cluster_id = db.Column(db.Integer, db.ForeignKey('role_cluster.id'), nullable=False)
+    iso_process_id = db.Column(db.Integer, db.ForeignKey('iso_processes.id'), nullable=False)
+    role_process_value = db.Column(db.Integer, nullable=False, default=-100)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+
+    # Relationships
+    role_cluster = db.relationship('RoleCluster', backref=db.backref('role_process_matrices', cascade="all, delete-orphan", lazy=True))
+    iso_process = db.relationship('IsoProcesses', backref=db.backref('role_process_matrices', cascade="all, delete-orphan", lazy=True))
+    organization = db.relationship('Organization', backref=db.backref('role_process_matrices', cascade="all, delete-orphan", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'role_cluster_id', 'iso_process_id', name='role_process_matrix_unique'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'role_cluster_id': self.role_cluster_id,
+            'iso_process_id': self.iso_process_id,
+            'role_process_value': self.role_process_value,
             'organization_id': self.organization_id
         }
 
+
+class ProcessCompetencyMatrix(db.Model):
+    """
+    Maps ISO processes to competencies
+    Defines which competencies are required for each process
+    """
+    __tablename__ = 'process_competency_matrix'
+
+    id = db.Column(db.Integer, primary_key=True)
+    iso_process_id = db.Column(db.Integer, db.ForeignKey('iso_processes.id'), nullable=False)
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
+    process_competency_value = db.Column(db.Integer, nullable=False, default=-100)
+
+    # Relationships
+    iso_process = db.relationship('IsoProcesses', backref=db.backref('competency_matrices', cascade="all, delete-orphan", lazy=True))
+    competency = db.relationship('Competency', backref=db.backref('process_matrices', cascade="all, delete-orphan", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint('iso_process_id', 'competency_id', name='process_competency_matrix_unique'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'iso_process_id': self.iso_process_id,
+            'competency_id': self.competency_id,
+            'process_competency_value': self.process_competency_value
+        }
+
+
+class RoleCompetencyMatrix(db.Model):
+    """
+    Maps SE role clusters to competencies
+    Defines which competencies each role requires and at what level
+    Calculated from RoleProcessMatrix × ProcessCompetencyMatrix
+    """
+    __tablename__ = 'role_competency_matrix'
+
+    id = db.Column(db.Integer, primary_key=True)
+    role_cluster_id = db.Column(db.Integer, db.ForeignKey('role_cluster.id'), nullable=False)
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
+    role_competency_value = db.Column(db.Integer, nullable=False, default=-100)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+
+    # Relationships
+    role_cluster = db.relationship('RoleCluster', backref=db.backref('role_competency_matrices', cascade="all, delete-orphan", lazy=True))
+    competency = db.relationship('Competency', backref=db.backref('role_competency_matrices', cascade="all, delete-orphan", lazy=True))
+    organization = db.relationship('Organization', backref=db.backref('role_competency_matrices', cascade="all, delete-orphan", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'role_cluster_id', 'competency_id', name='role_competency_matrix_unique'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'role_cluster_id': self.role_cluster_id,
+            'competency_id': self.competency_id,
+            'role_competency_value': self.role_competency_value,
+            'organization_id': self.organization_id
+        }
+
+
+class UnknownRoleProcessMatrix(db.Model):
+    """
+    Stores process involvement for users with unknown/custom roles
+    Used for task-based role identification in Phase 1
+    """
+    __tablename__ = 'unknown_role_process_matrix'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_name = db.Column(db.String(50), nullable=False)
+    iso_process_id = db.Column(db.Integer, db.ForeignKey('iso_processes.id', ondelete='CASCADE'), nullable=False)
+    role_process_value = db.Column(db.Integer, default=-100, nullable=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id', ondelete='CASCADE'), nullable=False)
+
+    # Relationships
+    iso_process = db.relationship('IsoProcesses', backref=db.backref('unknown_role_process_matrix', cascade="all, delete-orphan", lazy=True))
+    organization = db.relationship('Organization', backref=db.backref('unknown_role_process_matrix', cascade="all, delete-orphan", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'iso_process_id', 'user_name', name='unknown_role_process_matrix_unique'),
+        db.CheckConstraint("role_process_value IN (-100, 0, 1, 2, 4)", name="unknown_role_process_matrix_role_process_value_check"),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_name': self.user_name,
+            'iso_process_id': self.iso_process_id,
+            'role_process_value': self.role_process_value,
+            'organization_id': self.organization_id
+        }
+
+
+class UnknownRoleCompetencyMatrix(db.Model):
+    """
+    Stores competency requirements for users with unknown/custom roles
+    Calculated from process involvement via stored procedure
+    """
+    __tablename__ = 'unknown_role_competency_matrix'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_name = db.Column(db.String(50), nullable=False)
+    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
+    role_competency_value = db.Column(db.Integer, default=-100, nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id', ondelete='CASCADE'), nullable=False)
+
+    # Relationships
+    competency = db.relationship('Competency', backref=db.backref('unknown_role_competency_matrix', cascade="all, delete-orphan", lazy=True))
+    organization = db.relationship('Organization', backref=db.backref('unknown_role_competency_matrix', cascade="all, delete-orphan", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'user_name', 'competency_id', name='unknown_role_competency_matrix_unique'),
+        db.CheckConstraint("role_competency_value IN (-100, 0, 1, 2, 3, 4, 6)", name="unknown_role_competency_matrix_role_competency_value_check"),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_name': self.user_name,
+            'competency_id': self.competency_id,
+            'role_competency_value': self.role_competency_value,
+            'organization_id': self.organization_id
+        }
+
+
+# =============================================================================
+# SECTION 3: USER AND AUTHENTICATION MODELS
+# =============================================================================
+
+# NOTE: AppUser model removed - consolidated into User model below
+# The User model (table: 'users') is the single unified user model for SE-QPT
+# It combines authentication, organization management, and role handling
 
 class UserCompetencySurveyResult(db.Model):
     """
@@ -149,23 +357,22 @@ class UserCompetencySurveyResult(db.Model):
 
     # Derik's original fields
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'))
     competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'))
     score = db.Column(db.Integer, nullable=False)  # Current level (1-5)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    assessment_id = db.Column(db.Integer, db.ForeignKey('user_assessment.id', ondelete='CASCADE'))
 
     # SE-QPT gap analysis extensions (NEW COLUMNS - added via migration)
     target_level = db.Column(db.Integer)  # Target level from archetype matrix
     gap_size = db.Column(db.Integer)  # Calculated: target_level - score
     archetype_source = db.Column(db.String(100))  # Which archetype defined target
-    learning_plan_id = db.Column(db.String(36), db.ForeignKey('learning_plans.id'))
 
     # Relationships
     competency = db.relationship('Competency', backref='survey_results', foreign_keys=[competency_id])
     organization = db.relationship('Organization', backref='survey_results', foreign_keys=[organization_id])
-    user = db.relationship('AppUser', backref='survey_results', foreign_keys=[user_id])
-    learning_plan = db.relationship('LearningPlan', backref='survey_results', foreign_keys=[learning_plan_id])
+    user = db.relationship('User', backref='survey_results', foreign_keys=[user_id])
 
     def calculate_gap(self, target_level):
         """Calculate and update gap size"""
@@ -188,67 +395,108 @@ class UserCompetencySurveyResult(db.Model):
         }
 
 
-class LearningPlan(db.Model):
-    """
-    SE-QPT learning plans with RAG-LLM generated SMART objectives
-    This is SE-QPT's innovation - personalized learning objectives
-    """
-    __tablename__ = 'learning_plans'
+# =============================================================================
+# DERIK'S COMPETENCY ASSESSMENT MODELS (for Phase 2 integration)
+# =============================================================================
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False)
+# REMOVED Phase 2B: AppUser model (legacy - replaced by unified User model)
+
+
+# Note: UserCompetencySurveyResults uses the existing UserCompetencySurveyResult model
+# Create an alias for backward compatibility with Derik's endpoints
+UserCompetencySurveyResults = UserCompetencySurveyResult
+
+
+class UserRoleCluster(db.Model):
+    """
+    Derik's user-role mapping table
+    Links users to selected role clusters
+    """
+    __tablename__ = 'user_role_cluster'
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    role_cluster_id = db.Column(db.Integer, db.ForeignKey('role_cluster.id'), primary_key=True, nullable=False)
+    assessment_id = db.Column(db.Integer, db.ForeignKey('user_assessment.id', ondelete='CASCADE'))
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('role_clusters', cascade="all, delete-orphan", lazy=True), foreign_keys=[user_id])
+    role_cluster = db.relationship('RoleCluster', backref=db.backref('user_roles', cascade="all, delete-orphan", lazy=True))
+
+    def __repr__(self):
+        return f"<UserRoleCluster user_id={self.user_id}, role_cluster_id={self.role_cluster_id}>"
+
+
+# REMOVED Phase 2B: UserSurveyType model (legacy - merged into UserAssessment.survey_type)
+
+
+# REMOVED Phase 2B: NewSurveyUser model (legacy - replaced by UserAssessment)
+
+
+class UserCompetencySurveyFeedback(db.Model):
+    """
+    Stores LLM-generated feedback for competency assessment surveys
+    """
+    __tablename__ = 'user_competency_survey_feedback'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
+    feedback = db.Column(db.JSON, nullable=False)  # Store feedback as JSON array
+    assessment_id = db.Column(db.Integer, db.ForeignKey('user_assessment.id', ondelete='CASCADE'))
+
+    def __repr__(self):
+        return f"<UserCompetencySurveyFeedback user_id={self.user_id} organization_id={self.organization_id}>"
+
+
+# NOTE: LearningPlan model removed - not yet implemented
+# Future learning plan features will be added when implemented
+
+
+class UserAssessment(db.Model):
+    """
+    Tracks individual competency assessments for authenticated users
+    Replaces the anonymous survey system (NewSurveyUser, AppUser)
+    Links assessments to real User accounts for history and aggregation
+    """
+    __tablename__ = 'user_assessment'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
 
-    # Learning objectives (RAG-LLM generated, stored as JSON)
-    objectives = db.Column(db.Text, nullable=False)  # JSON array of SMART objectives
+    # Assessment type and survey mode
+    assessment_type = db.Column(db.String(50), nullable=False)  # 'role_based', 'task_based', 'full_competency'
+    survey_type = db.Column(db.String(50))  # 'known_roles', 'unknown_roles', 'all_roles'
 
-    # Recommended modules (JSON array)
-    recommended_modules = db.Column(db.Text)
-
-    # Plan metadata
-    estimated_duration_weeks = db.Column(db.Integer)
-    archetype_used = db.Column(db.String(100))  # Which archetype was used
+    # Assessment data
+    tasks_responsibilities = db.Column(db.JSON)  # Task descriptions for task-based assessments
+    selected_roles = db.Column(db.JSON)  # Array of selected role IDs for role-based assessments
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
 
     # Relationships
-    user = db.relationship('AppUser', backref='learning_plans', foreign_keys=[user_id])
-    organization = db.relationship('Organization', backref='learning_plans', foreign_keys=[organization_id])
-
-    def get_objectives(self):
-        """Get objectives as Python list"""
-        if self.objectives:
-            return json.loads(self.objectives)
-        return []
-
-    def set_objectives(self, objectives_list):
-        """Set objectives from Python list"""
-        self.objectives = json.dumps(objectives_list, ensure_ascii=False)
-
-    def get_recommended_modules(self):
-        """Get recommended modules as Python list"""
-        if self.recommended_modules:
-            return json.loads(self.recommended_modules)
-        return []
-
-    def set_recommended_modules(self, modules_list):
-        """Set recommended modules from Python list"""
-        self.recommended_modules = json.dumps(modules_list, ensure_ascii=False)
+    user = db.relationship('User', backref='assessments_history', foreign_keys=[user_id])
+    organization = db.relationship('Organization', backref='user_assessments', foreign_keys=[organization_id])
 
     def to_dict(self):
+        """Convert assessment to dictionary for API responses"""
         return {
             'id': self.id,
             'user_id': self.user_id,
             'organization_id': self.organization_id,
-            'objectives': self.get_objectives(),
-            'recommended_modules': self.get_recommended_modules(),
-            'estimated_duration_weeks': self.estimated_duration_weeks,
-            'archetype_used': self.archetype_used,
+            'assessment_type': self.assessment_type,
+            'survey_type': self.survey_type,
+            'tasks_responsibilities': self.tasks_responsibilities,
+            'selected_roles': self.selected_roles,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'status': 'completed' if self.completed_at else 'in_progress'
         }
+
+    def __repr__(self):
+        return f"<UserAssessment id={self.id} user_id={self.user_id} type={self.assessment_type} status={'completed' if self.completed_at else 'in_progress'}>"
 
 
 class PhaseQuestionnaireResponse(db.Model):
@@ -259,7 +507,7 @@ class PhaseQuestionnaireResponse(db.Model):
     __tablename__ = 'phase_questionnaire_responses'
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.Integer, db.ForeignKey('app_user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
 
     # Questionnaire metadata
@@ -274,7 +522,7 @@ class PhaseQuestionnaireResponse(db.Model):
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    user = db.relationship('AppUser', backref='questionnaire_responses', foreign_keys=[user_id])
+    user = db.relationship('User', backref='questionnaire_responses', foreign_keys=[user_id])
     organization = db.relationship('Organization', backref='questionnaire_responses', foreign_keys=[organization_id])
 
     def get_responses(self):
@@ -336,7 +584,7 @@ class User(db.Model):
     # Organization relationship (supports both FK and string for flexibility)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'))  # Proper FK relationship
     organization = db.Column(db.String(200))  # Fallback/legacy string field
-    joined_via_code = db.Column(db.String(8))  # Organization code used to join
+    joined_via_code = db.Column(db.String(32))  # Organization code used to join (16-char hex codes)
 
     # Role and permissions (flexible system supporting both patterns)
     role = db.Column(db.String(100))  # Flexible role field (e.g., 'admin', 'employee', custom roles)
@@ -350,11 +598,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
 
-    # Relationships
-    assessments = db.relationship('Assessment', backref='user', lazy=True)
-    qualification_plans = db.relationship('QualificationPlan', backref='user', lazy=True)
-    learning_objectives = db.relationship('LearningObjective', backref='user', lazy=True, foreign_keys='LearningObjective.user_id')
-    module_enrollments = db.relationship('ModuleEnrollment', backref='user', lazy=True)
+    # Relationships removed: Assessment, LearningObjective, ModuleEnrollment models deleted in Phase 2A cleanup
 
     def set_password(self, password):
         """Hash and set user password"""
@@ -401,7 +645,6 @@ class User(db.Model):
             'first_name': self.first_name,
             'last_name': self.last_name,
             'full_name': self.full_name,
-            'organization': self.organization,
             'organization_id': self.organization_id,
             'joined_via_code': self.joined_via_code,
             'role': self.role,
@@ -413,580 +656,25 @@ class User(db.Model):
         }
 
 
-class MaturityAssessment(db.Model):
-    """Organizational maturity assessment (Admin only)"""
-    __tablename__ = 'maturity_assessments'
-
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
-
-    # Maturity scores
-    scope_score = db.Column(db.Float, nullable=False)
-    process_score = db.Column(db.Float, nullable=False)
-    overall_maturity = db.Column(db.String(20), nullable=False)  # 'Initial', 'Developing', etc.
-    overall_score = db.Column(db.Float, nullable=False)
-
-    # Raw responses (JSON storage)
-    responses = db.Column(db.Text)  # JSON string of all 33 question responses
-
-    # Timestamps
-    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'organization_id': self.organization_id,
-            'scope_score': self.scope_score,
-            'process_score': self.process_score,
-            'overall_maturity': self.overall_maturity,
-            'overall_score': self.overall_score,
-            'responses': json.loads(self.responses) if self.responses else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None
-        }
-
-
 # =============================================================================
 # SECTION 3: SE-QPT CORE MODELS
 # =============================================================================
-
-class QualificationArchetype(db.Model):
-    """6 qualification archetype strategies from Marcel's research"""
-    __tablename__ = 'qualification_archetypes'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
-    description = db.Column(db.Text)
-    typical_duration = db.Column(db.String(50))
-    learning_format = db.Column(db.String(100))
-    target_audience = db.Column(db.String(200))
-    focus_area = db.Column(db.String(100))
-    delivery_method = db.Column(db.String(100))
-    strategy = db.Column(db.String(100))
-
-    # Metadata
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
 
 # =============================================================================
 # SECTION 5: ASSESSMENT MODELS
 # =============================================================================
 
-class Assessment(db.Model):
-    """Unified assessment model"""
-    __tablename__ = 'assessments'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-
-    # Assessment details
-    phase = db.Column(db.Integer)
-    assessment_type = db.Column(db.String(50))
-    title = db.Column(db.String(200))
-    description = db.Column(db.Text)
-
-    # Status and scoring
-    status = db.Column(db.String(20), default='in_progress')
-    score = db.Column(db.Float)
-    max_score = db.Column(db.Float, default=100.0)
-    completion_time_minutes = db.Column(db.Integer)
-
-    # Results
-    results = db.Column(db.Text)  # JSON string
-    selected_archetype_id = db.Column(db.Integer, db.ForeignKey('qualification_archetypes.id'))
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-
-    # Relationships
-    selected_archetype = db.relationship('QualificationArchetype', backref='assessments')
-    competency_results = db.relationship('CompetencyAssessmentResult', backref='assessment', lazy=True)
-
-
-class CompetencyAssessmentResult(db.Model):
-    """Individual competency assessment results"""
-    __tablename__ = 'competency_assessment_results'
-
-    id = db.Column(db.Integer, primary_key=True)
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), nullable=False)
-    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
-
-    # Assessment scores
-    current_level = db.Column(db.Integer)
-    target_level = db.Column(db.Integer)
-    score = db.Column(db.Float)
-    confidence_score = db.Column(db.Float)
-
-    # Analysis
-    gap_analysis = db.Column(db.Text)  # JSON string
-    recommendations = db.Column(db.Text)  # JSON string
-
-    # Relationships
-    competency = db.relationship('Competency', backref='assessment_results')
-
-    @property
-    def gap_size(self):
-        if self.target_level and self.current_level:
-            return max(0, self.target_level - self.current_level)
-        return 0
-
-
 # =============================================================================
 # SECTION 6: RAG-LLM MODELS
 # =============================================================================
-
-class CompanyContext(db.Model):
-    """Company context for RAG generation"""
-    __tablename__ = 'company_contexts'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200))
-    industry = db.Column(db.String(100))
-    size = db.Column(db.String(50))
-    domain = db.Column(db.String(100))
-
-    # PMT Framework
-    processes = db.Column(db.Text)  # JSON string
-    methods = db.Column(db.Text)    # JSON string
-    tools = db.Column(db.Text)      # JSON string
-    standards = db.Column(db.Text)  # JSON string
-    project_types = db.Column(db.Text)  # JSON string
-
-    # Organizational context
-    organizational_structure = db.Column(db.Text)  # JSON string
-    quality_score = db.Column(db.Float)
-    extraction_metadata = db.Column(db.Text)  # JSON string
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class LearningObjective(db.Model):
-    """RAG-generated learning objectives"""
-    __tablename__ = 'learning_objectives'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
-
-    # Objective content
-    text = db.Column(db.Text, nullable=False)
-    type = db.Column(db.String(50), default='rag_generated')
-    priority = db.Column(db.String(20), default='medium')
-
-    # Quality metrics
-    smart_score = db.Column(db.Float)
-    smart_analysis = db.Column(db.Text)  # JSON string
-    context_relevance = db.Column(db.Float)
-    validation_status = db.Column(db.String(20), default='pending')
-
-    # RAG metadata
-    rag_sources = db.Column(db.Text)  # JSON string
-    generation_metadata = db.Column(db.Text)  # JSON string
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relationships
-    competency = db.relationship('Competency', backref='learning_objectives')
-
-
-class QualificationPlan(db.Model):
-    """Qualification plans from 4-phase process"""
-    __tablename__ = 'qualification_plans'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-
-    # Plan details
-    name = db.Column(db.String(200))
-    description = db.Column(db.Text)
-    target_role = db.Column(db.String(100))
-    archetype_id = db.Column(db.Integer, db.ForeignKey('qualification_archetypes.id'))
-
-    # Plan content
-    estimated_duration_weeks = db.Column(db.Integer)
-    modules = db.Column(db.Text)  # JSON string
-    learning_path = db.Column(db.Text)  # JSON string
-    progress_tracking = db.Column(db.Text)  # JSON string
-
-    # Status
-    status = db.Column(db.String(20), default='draft')
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    archetype = db.relationship('QualificationArchetype', backref='qualification_plans')
-
-
-class RAGTemplate(db.Model):
-    """Templates for RAG objective generation"""
-    __tablename__ = 'rag_templates'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(50))
-    competency_focus = db.Column(db.String(100))
-    industry_context = db.Column(db.String(100))
-
-    # Template content
-    template_text = db.Column(db.Text, nullable=False)
-    variables = db.Column(db.Text)  # JSON string
-    success_criteria = db.Column(db.Text)  # JSON string
-
-    # Usage tracking
-    usage_count = db.Column(db.Integer, default=0)
-    average_quality_score = db.Column(db.Float, default=0.0)
-    template_metadata = db.Column(db.Text)  # JSON string
-
-    # Status
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
 
 # =============================================================================
 # SECTION 7: QUESTIONNAIRE SYSTEM MODELS
 # =============================================================================
 
-class Questionnaire(db.Model):
-    """SE-QPT Questionnaire definitions"""
-    __tablename__ = 'questionnaires'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    title = db.Column(db.String(500))
-    description = db.Column(db.Text)
-    questionnaire_type = db.Column(db.String(50))  # maturity, archetype, competency, etc.
-    phase = db.Column(db.Integer)  # SE-QPT phase (1-4)
-
-    # Configuration
-    is_active = db.Column(db.Boolean, default=True)
-    sort_order = db.Column(db.Integer, default=0)
-    estimated_duration_minutes = db.Column(db.Integer)
-
-    # Metadata
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    questions = db.relationship('Question', backref='questionnaire', lazy=True, cascade='all, delete-orphan')
-
-
-class Question(db.Model):
-    """Individual questions within questionnaires"""
-    __tablename__ = 'questions'
-
-    id = db.Column(db.Integer, primary_key=True)
-    questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaires.id'), nullable=False)
-
-    # Question content
-    question_number = db.Column(db.String(10))  # Q1, Q2, etc.
-    question_text = db.Column(db.Text, nullable=False)
-    question_type = db.Column(db.String(20))  # multiple_choice, text, rating, etc.
-    section = db.Column(db.String(100))  # Section name if applicable
-
-    # Weighting and scoring
-    weight = db.Column(db.Float, default=1.0)
-    max_score = db.Column(db.Float, default=5.0)
-    scoring_method = db.Column(db.String(50))  # linear, weighted, custom
-
-    # Configuration
-    is_required = db.Column(db.Boolean, default=True)
-    sort_order = db.Column(db.Integer, default=0)
-
-    # Question metadata
-    help_text = db.Column(db.Text)
-    validation_rules = db.Column(db.Text)  # JSON string
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relationships
-    options = db.relationship('QuestionOption', backref='question', lazy=True, cascade='all, delete-orphan')
-    responses = db.relationship('QuestionResponse', backref='question', lazy=True)
-
-
-class QuestionOption(db.Model):
-    """Answer options for multiple choice questions"""
-    __tablename__ = 'question_options'
-
-    id = db.Column(db.Integer, primary_key=True)
-    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
-
-    # Option content
-    option_text = db.Column(db.Text, nullable=False)
-    option_value = db.Column(db.String(10))  # e.g., "A", "1", "true"
-    score_value = db.Column(db.Float, default=0.0)
-
-    # Configuration
-    sort_order = db.Column(db.Integer, default=0)
-    is_correct = db.Column(db.Boolean, default=False)
-
-    # Metadata
-    additional_data = db.Column(db.Text)  # JSON string for any extra data
-
-
-class QuestionnaireResponse(db.Model):
-    """User responses to complete questionnaires"""
-    __tablename__ = 'questionnaire_responses'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaires.id'), nullable=False)
-
-    # Response status
-    status = db.Column(db.String(20), default='in_progress')  # in_progress, completed, abandoned
-    completion_percentage = db.Column(db.Float, default=0.0)
-
-    # Scoring results
-    total_score = db.Column(db.Float)
-    max_possible_score = db.Column(db.Float)
-    score_percentage = db.Column(db.Float)
-    section_scores = db.Column(db.Text)  # JSON string with section breakdowns
-
-    # Analysis results
-    results_summary = db.Column(db.Text)  # JSON string
-    recommendations = db.Column(db.Text)  # JSON string
-    computed_archetype = db.Column(db.Text)  # JSON string for SE-QPT computed archetype
-
-    # Timing
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-    duration_minutes = db.Column(db.Integer)
-
-    # Relationships
-    questionnaire = db.relationship('Questionnaire', backref='responses', lazy=True)
-    question_responses = db.relationship('QuestionResponse', backref='questionnaire_response', lazy=True)
-
-
-class QuestionResponse(db.Model):
-    """Individual question responses"""
-    __tablename__ = 'question_responses'
-
-    id = db.Column(db.Integer, primary_key=True)
-    questionnaire_response_id = db.Column(db.Integer, db.ForeignKey('questionnaire_responses.id'), nullable=False)
-    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
-
-    # Response data
-    response_value = db.Column(db.Text)  # Can store text, numbers, JSON for complex responses
-    selected_option_id = db.Column(db.Integer, db.ForeignKey('question_options.id'))
-    score = db.Column(db.Float)
-
-    # Response metadata
-    confidence_level = db.Column(db.Integer)  # 1-5 scale
-    time_spent_seconds = db.Column(db.Integer)
-    revision_count = db.Column(db.Integer, default=0)
-
-    # Timestamps
-    responded_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_modified_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    selected_option = db.relationship('QuestionOption')
-
-
 # =============================================================================
 # SECTION 8: LEARNING MODULE SYSTEM MODELS
 # =============================================================================
-
-class LearningModule(db.Model):
-    """SE Competency Learning Modules"""
-    __tablename__ = 'learning_modules'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-
-    # Module identification
-    module_code = db.Column(db.String(10), unique=True, nullable=False)  # e.g., C01, P01, S01, M01
-    name = db.Column(db.String(200), nullable=False)
-    category = db.Column(db.String(50), nullable=False)  # Core, Professional, Social, Management
-    competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'))
-
-    # Module content
-    definition = db.Column(db.Text)
-    overview = db.Column(db.Text)
-    industry_relevance = db.Column(db.Text)
-
-    # Level-based structure (JSON for each level)
-    level_1_content = db.Column(db.Text)  # JSON: {hours, objectives, topics, assessments}
-    level_2_content = db.Column(db.Text)  # JSON
-    level_3_4_content = db.Column(db.Text)  # JSON
-    level_5_6_content = db.Column(db.Text)  # JSON
-
-    # Prerequisites and dependencies
-    prerequisites = db.Column(db.Text)  # JSON array of prerequisite module codes
-    dependencies = db.Column(db.Text)  # JSON array of dependent modules
-
-    # Industry adaptations
-    industry_adaptations = db.Column(db.Text)  # JSON object with industry-specific content
-
-    # Module metadata
-    total_duration_hours = db.Column(db.Integer)
-    difficulty_level = db.Column(db.String(20), default='beginner')  # beginner, intermediate, advanced, expert
-    version = db.Column(db.String(10), default='1.0')
-
-    # Status and tracking
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    competency = db.relationship('Competency', backref='modules')
-
-
-class LearningPath(db.Model):
-    """Recommended learning paths for different roles/industries"""
-    __tablename__ = 'learning_paths'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-
-    # Path identification
-    name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    path_type = db.Column(db.String(50))  # role_based, industry_based, level_based
-    target_audience = db.Column(db.String(200))
-
-    # Path content
-    module_sequence = db.Column(db.Text)  # JSON array of module codes in order
-    estimated_duration_weeks = db.Column(db.Integer)
-    difficulty_progression = db.Column(db.Text)  # JSON showing level progression
-
-    # Industry/role specifics
-    industry_focus = db.Column(db.String(100))
-    role_focus = db.Column(db.String(100))
-    experience_level = db.Column(db.String(50))  # entry, junior, mid, senior, expert
-
-    # Success criteria
-    completion_criteria = db.Column(db.Text)  # JSON defining completion requirements
-    assessment_strategy = db.Column(db.Text)  # JSON describing assessment approach
-
-    # Metadata
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class ModuleEnrollment(db.Model):
-    """User enrollment in learning modules"""
-    __tablename__ = 'module_enrollments'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    module_id = db.Column(db.Integer, db.ForeignKey('learning_modules.id'), nullable=False)
-
-    # Enrollment details
-    target_level = db.Column(db.Integer, default=1)  # 1-6 proficiency level target
-    current_level = db.Column(db.Integer, default=0)  # Current achieved level
-
-    # Progress tracking
-    status = db.Column(db.String(20), default='enrolled')  # enrolled, in_progress, completed, paused
-    progress_percentage = db.Column(db.Float, default=0.0)
-    time_spent_hours = db.Column(db.Float, default=0.0)
-
-    # Learning analytics
-    learning_style_preference = db.Column(db.String(50))
-    engagement_score = db.Column(db.Float)
-    completion_quality = db.Column(db.Float)
-
-    # Timestamps
-    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
-    started_at = db.Column(db.DateTime)
-    completed_at = db.Column(db.DateTime)
-    last_accessed_at = db.Column(db.DateTime)
-
-    # Relationships
-    user = db.relationship('User', backref='module_enrollments')
-    module = db.relationship('LearningModule', backref='enrollments')
-
-
-class ModuleAssessment(db.Model):
-    """Assessment results for learning modules"""
-    __tablename__ = 'module_assessments'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    enrollment_id = db.Column(db.Integer, db.ForeignKey('module_enrollments.id'), nullable=False)
-
-    # Assessment details
-    assessment_type = db.Column(db.String(50))  # knowledge_check, practical, portfolio, capstone
-    level_assessed = db.Column(db.Integer)  # 1-6 proficiency level
-
-    # Results
-    score = db.Column(db.Float)
-    max_score = db.Column(db.Float)
-    pass_threshold = db.Column(db.Float, default=70.0)
-    passed = db.Column(db.Boolean, default=False)
-
-    # Assessment content
-    questions_data = db.Column(db.Text)  # JSON with assessment questions/tasks
-    responses_data = db.Column(db.Text)  # JSON with user responses
-    feedback = db.Column(db.Text)
-
-    # Analytics
-    time_taken_minutes = db.Column(db.Integer)
-    attempt_number = db.Column(db.Integer, default=1)
-    competency_demonstration = db.Column(db.Text)  # JSON showing competency evidence
-
-    # Timestamps
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-
-    # Relationships
-    enrollment = db.relationship('ModuleEnrollment', backref='assessments')
-
-
-class LearningResource(db.Model):
-    """Learning resources associated with modules"""
-    __tablename__ = 'learning_resources'
-
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    module_id = db.Column(db.Integer, db.ForeignKey('learning_modules.id'), nullable=False)
-
-    # Resource details
-    title = db.Column(db.String(300), nullable=False)
-    resource_type = db.Column(db.String(50))  # video, document, simulation, tool, reference
-    format = db.Column(db.String(20))  # pdf, mp4, html, interactive, external
-
-    # Content
-    description = db.Column(db.Text)
-    url = db.Column(db.String(500))
-    file_path = db.Column(db.String(500))
-    content_data = db.Column(db.Text)  # JSON with structured content
-
-    # Level and prerequisites
-    target_levels = db.Column(db.String(20))  # e.g., "1,2" or "3-4" or "5-6"
-    prerequisites = db.Column(db.Text)  # JSON array of prerequisite topics
-
-    # Quality and usage metrics
-    difficulty_rating = db.Column(db.Float)
-    quality_rating = db.Column(db.Float)
-    usage_count = db.Column(db.Integer, default=0)
-    average_completion_time = db.Column(db.Integer)  # minutes
-
-    # Metadata
-    author = db.Column(db.String(200))
-    source = db.Column(db.String(200))
-    language = db.Column(db.String(10), default='en')
-    last_updated = db.Column(db.DateTime)
-    is_active = db.Column(db.Boolean, default=True)
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relationships
-    module = db.relationship('LearningModule', backref='resources')
-
 
 # =============================================================================
 # BACKWARD COMPATIBILITY ALIASES
@@ -1000,9 +688,6 @@ SERole = RoleCluster
 
 # Alias for existing code that references CompetencyAssessment
 CompetencyAssessment = UserCompetencySurveyResult
-
-# Alias for existing code that references MVPUser (now unified into User)
-MVPUser = User
 
 
 # =============================================================================
@@ -1030,7 +715,7 @@ def get_organization_completion_stats(organization_id):
     if not org:
         return None
 
-    total_users = AppUser.query.filter_by(organization_id=organization_id).count()
+    total_users = User.query.filter_by(organization_id=organization_id).count()
 
     # Count users with completed assessments
     users_with_assessments = db.session.query(

@@ -5,8 +5,8 @@
       <div class="phase-indicator">
         <div class="phase-number">2</div>
         <div class="phase-title">
-          <h1>Phase 2: Competency Assessment & RAG Objectives</h1>
-          <p>Assess your competencies across 16 INCOSE domains and generate AI-powered learning objectives</p>
+          <h1>Phase 2: Identify requirements and competencies</h1>
+          <p>Determine necessary competencies, identify gaps, and formulate learning objectives</p>
         </div>
       </div>
 
@@ -22,94 +22,110 @@
 
     <!-- Phase Steps -->
     <div class="phase-steps">
-      <el-steps :active="currentStep" align-center finish-status="success">
-        <el-step title="Assessment Type" description="Select pathway & context" />
-        <el-step title="Role/Task Selection" description="Define assessment scope" />
+      <!-- Employee View: Steps 1-3 only -->
+      <el-steps v-if="!authStore.isAdmin" :active="currentStep" align-center finish-status="success">
+        <el-step title="Role Selection" description="Select roles from Phase 1" />
+        <el-step title="Competency Assessment" description="Assess competencies" />
         <el-step title="Assessment Results" description="Review competency analysis" />
-        <el-step title="Company Context" description="PMT job environment details" />
-        <el-step title="RAG Objectives" description="Generate customized learning goals" />
-        <el-step title="Review Results" description="Validate and confirm" />
+      </el-steps>
+
+      <!-- Admin View: Steps 1-4 -->
+      <el-steps v-else :active="currentStep" align-center finish-status="success">
+        <el-step title="Role Selection" description="Select roles from Phase 1" />
+        <el-step title="Competency Assessment" description="Assess competencies" />
+        <el-step title="Assessment Results" description="Review competency analysis" />
+        <el-step title="Generate Learning Objectives" description="Create personalized learning goals" />
       </el-steps>
     </div>
 
     <!-- Step Content -->
     <div class="step-content">
-      <!-- Step 1: Assessment Type & Context Selection -->
+      <!-- Step 0: Role Selection from Phase 1 -->
       <el-card v-if="currentStep === 0" class="step-card">
         <template #header>
-          <h3>Assessment Configuration</h3>
+          <h3>Select Roles for Competency Assessment</h3>
+          <p class="step-subtitle">Select from the roles identified in Phase 1</p>
         </template>
 
-        <div class="assessment-configuration">
-          <!-- Assessment Pathway Selection -->
-          <div class="pathway-selection">
-            <h4>Choose Assessment Pathway</h4>
-            <div class="pathway-options">
-              <div
-                class="pathway-card"
-                :class="{ selected: selectedPathway === 'role-based' }"
-                @click="selectPathway('role-based')"
-              >
-                <el-icon size="32"><Briefcase /></el-icon>
-                <h5>Role-Based Assessment</h5>
-                <p>Select from 14 predefined SE role clusters and assess competencies required for your target role(s).</p>
-                <ul>
-                  <li>Choose from established role clusters</li>
-                  <li>Get role-specific competency requirements</li>
-                  <li>Compare current vs required levels</li>
-                </ul>
-              </div>
+        <div v-if="loading" class="loading-state">
+          <el-icon class="loading-spinner" size="48"><Loading /></el-icon>
+          <p>Loading Phase 1 roles...</p>
+        </div>
 
-              <div
-                class="pathway-card"
-                :class="{ selected: selectedPathway === 'task-based' }"
-                @click="selectPathway('task-based')"
-              >
-                <el-icon size="32"><List /></el-icon>
-                <h5>Task-Based Assessment</h5>
-                <p>Describe your job tasks and responsibilities. AI will map them to ISO processes and derive competency requirements.</p>
-                <ul>
-                  <li>Input job tasks and responsibilities</li>
-                  <li>AI maps tasks to ISO 15288 processes</li>
-                  <li>System derives competency requirements</li>
-                </ul>
-              </div>
-
-              <div
-                class="pathway-card"
-                :class="{ selected: selectedPathway === 'full-competency' }"
-                @click="selectPathway('full-competency')"
-              >
-                <el-icon size="32"><DataBoard /></el-icon>
-                <h5>Full Competency Assessment</h5>
-                <p>Assess all 16 SE competencies. System will suggest best-matching roles based on your competency profile.</p>
-                <ul>
-                  <li>Comprehensive competency evaluation</li>
-                  <li>AI suggests suitable roles</li>
-                  <li>Discover potential career paths</li>
-                </ul>
-              </div>
-            </div>
+        <div v-else-if="!phase1Roles || phase1Roles.length === 0" class="no-roles-state">
+          <el-alert
+            title="No Roles Found"
+            description="No roles were identified in Phase 1. Please complete Phase 1 Task 2 (Role Identification) first."
+            type="warning"
+            :closable="false"
+            show-icon
+          />
+          <div class="step-actions">
+            <el-button type="primary" @click="router.push('/app/phases/1')">
+              Go to Phase 1
+            </el-button>
           </div>
         </div>
 
-        <div class="step-actions">
-          <el-button type="primary" @click="nextStep" :disabled="!selectedPathway" :loading="loading">
-            Continue with {{ getPathwayLabel() }}
-          </el-button>
+        <div v-else class="role-selection">
+          <div class="selection-intro">
+            <el-alert
+              :title="`${phase1Roles.length} role(s) identified in Phase 1`"
+              description="Select the roles you want to assess. You can select multiple roles."
+              type="info"
+              :closable="false"
+              show-icon
+            />
+          </div>
+
+          <div class="roles-grid">
+            <div
+              v-for="role in phase1Roles"
+              :key="role.standardRoleId || role.id"
+              class="role-card"
+              :class="{ selected: selectedRoleIds.includes(role.standardRoleId || role.id) }"
+              @click="toggleRoleSelection(role.standardRoleId || role.id)"
+            >
+              <div class="role-header">
+                <h4 class="role-name">{{ getRoleName(role) }}</h4>
+              </div>
+
+              <p class="role-description">{{ getRoleDescription(role) }}</p>
+
+              <div class="selection-indicator" v-if="selectedRoleIds.includes(role.standardRoleId || role.id)">
+                <el-icon><Check /></el-icon>
+              </div>
+            </div>
+          </div>
+
+          <div class="selected-roles-summary" v-if="selectedRoleIds.length > 0">
+            <el-alert
+              :title="`${selectedRoleIds.length} role(s) selected for assessment`"
+              type="success"
+              :closable="false"
+              show-icon
+            />
+          </div>
+
+          <div class="step-actions">
+            <el-button type="primary" @click="nextStep" :disabled="selectedRoleIds.length === 0" :loading="loading">
+              Continue to Assessment
+            </el-button>
+          </div>
         </div>
       </el-card>
 
-      <!-- Step 2: Role/Task Selection (Based on Pathway) -->
+      <!-- Step 1: Competency Assessment (Using Derik's Bridge) -->
       <el-card v-if="currentStep === 1" class="step-card">
         <template #header>
-          <h3>{{ getStep2Title() }}</h3>
+          <h3>Competency Assessment</h3>
+          <p class="step-subtitle">Assess competencies for selected roles</p>
         </template>
 
         <!-- Derik's Competency Assessment Integration -->
         <DerikCompetencyBridge
-          v-if="selectedPathway"
-          :mode="selectedPathway"
+          v-if="selectedRoleIds.length > 0"
+          :preselectedRoles="selectedRoleIds"
           @back="previousStep"
           @completed="onCompetencyAssessmentCompleted"
         />
@@ -602,8 +618,13 @@ const analyzing = ref(false)
 const generating = ref(false)
 const generationStep = ref(0)
 
-// Pathway selection
-const selectedPathway = ref(null)
+// Phase 1 roles and selection
+const phase1Roles = ref([])
+const selectedRoleIds = ref([])
+const phase1MaturityId = ref(null)
+
+// Legacy - keeping for compatibility
+const selectedPathway = ref('role-based') // Always role-based now
 const selectedRole = ref(null)
 const roles = ref([])
 const roleCompetencyMatrix = ref([])
@@ -728,8 +749,9 @@ const getStep2Title = () => {
 }
 
 const nextStep = async () => {
-  if (currentStep.value === 0 && selectedPathway.value) {
-    // Move from pathway selection to assessment
+  if (currentStep.value === 0 && selectedRoleIds.value.length > 0) {
+    // Move from Phase 1 role selection to competency assessment
+    console.log('[Phase2] Moving to assessment with', selectedRoleIds.value.length, 'selected roles')
     currentStep.value++
   } else if (currentStep.value === 1) {
     // DerikCompetencyBridge handles assessment completion
@@ -835,6 +857,69 @@ const analyzeJobDescription = async () => {
   } finally {
     analyzing.value = false
   }
+}
+
+// Load Phase 1 identified roles
+const loadPhase1Roles = async () => {
+  try {
+    loading.value = true
+    const orgId = authStore.user?.organization_id
+
+    if (!orgId) {
+      ElMessage.warning('No organization found. Please complete Phase 1 first.')
+      return
+    }
+
+    console.log('[Phase2] Loading Phase 1 roles for org:', orgId)
+    const response = await axios.get(`/api/phase1/roles/${orgId}/latest`)
+
+    if (response.data.success && response.data.data && response.data.count > 0) {
+      phase1Roles.value = response.data.data
+      phase1MaturityId.value = response.data.maturityId
+      console.log('[Phase2] Loaded', phase1Roles.value.length, 'roles from Phase 1')
+    } else {
+      phase1Roles.value = []
+      console.warn('[Phase2] No roles found in Phase 1')
+      ElMessage.info('No roles found from Phase 1. Please complete Phase 1 Task 2 first.')
+    }
+  } catch (error) {
+    console.error('[Phase2] Error loading Phase 1 roles:', error)
+    ElMessage.error('Failed to load Phase 1 roles')
+    phase1Roles.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// Toggle role selection
+const toggleRoleSelection = (roleId) => {
+  const index = selectedRoleIds.value.indexOf(roleId)
+  if (index > -1) {
+    selectedRoleIds.value.splice(index, 1)
+  } else {
+    selectedRoleIds.value.push(roleId)
+  }
+}
+
+// Helper function to get role display name (same as Phase 1)
+const getRoleName = (role) => {
+  // standardRoleName is the SE role cluster name (e.g., "Customer", "Project Manager")
+  // orgRoleName is the organization-specific name entered by user
+  const standardName = role.standardRoleName || role.standard_role_name
+  const orgName = role.orgRoleName || role.org_role_name
+
+  // If both exist, show both: "Customer (baka)"
+  if (standardName && orgName) {
+    return `${standardName} (${orgName})`
+  }
+
+  // Otherwise show whichever exists
+  return orgName || standardName || 'Unknown Role'
+}
+
+// Helper function to get role description
+const getRoleDescription = (role) => {
+  return role.standard_role_description || role.standardRoleDescription || 'No description available'
 }
 
 const loadRoles = async () => {
@@ -1286,12 +1371,84 @@ const onBasicContextSubmitted = async (contextData) => {
   }
 }
 
+// Check for existing completed assessments and redirect to latest
+const checkForCompletedAssessment = async () => {
+  try {
+    // Check if user wants to start fresh (from retake button)
+    if (router.currentRoute.value.query.fresh === 'true') {
+      console.log('[Phase2] Fresh assessment requested - skipping redirect check')
+      return false
+    }
+
+    const userId = authStore.user?.id
+    if (!userId) {
+      console.log('[Phase2] No user ID, skipping completed assessment check')
+      return false
+    }
+
+    console.log('[Phase2] Checking for completed assessments for user:', userId)
+
+    // Call backend endpoint to get user's assessment history
+    const response = await axios.get(`/user/${userId}/assessments`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+
+    if (response.data && response.data.assessments && response.data.assessments.length > 0) {
+      // Filter for completed assessments only
+      const completedAssessments = response.data.assessments.filter(a => a.status === 'completed')
+
+      if (completedAssessments.length > 0) {
+        // Get the latest completed assessment
+        const latestAssessment = completedAssessments.sort((a, b) =>
+          new Date(b.completed_at) - new Date(a.completed_at)
+        )[0]
+
+        console.log('[Phase2] Found latest completed assessment:', latestAssessment.id)
+
+        // Redirect to the persistent results URL
+        ElMessage.info('Redirecting to your latest assessment results...')
+
+        // Use router.replace to redirect without adding to history
+        router.replace({
+          name: 'AssessmentResults',
+          params: { id: latestAssessment.id }
+        })
+
+        return true // Signal that we redirected
+      }
+    }
+
+    console.log('[Phase2] No completed assessments found, starting fresh')
+    return false
+  } catch (error) {
+    console.error('[Phase2] Error checking for completed assessments:', error)
+    // Continue with normal flow if check fails
+    return false
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
-  await loadRoles()
+  // First, check if user has completed assessments and redirect if so
+  const hasRedirected = await checkForCompletedAssessment()
 
-  // Load qualification archetype from Phase 1
-  qualificationArchetype.value = getQualificationArchetype()
+  // Only load Phase 1 data if we didn't redirect
+  if (!hasRedirected) {
+    // Load Phase 1 roles for role selection
+    await loadPhase1Roles()
+
+    // Load qualification archetype from Phase 1
+    qualificationArchetype.value = getQualificationArchetype()
+
+    // Clean up the 'fresh' query parameter if present (for cleaner URL)
+    if (router.currentRoute.value.query.fresh) {
+      router.replace({ path: router.currentRoute.value.path })
+    }
+  }
+
+  // Note: We no longer load standard roles - we only use Phase 1 identified roles
 })
 </script>
 
@@ -2137,6 +2294,46 @@ onMounted(async () => {
 }
 
 /* New components styles */
+.step-subtitle {
+  margin: 8px 0 0 0;
+  color: #606266;
+  font-size: 14px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.loading-state .loading-spinner {
+  color: #67c23a;
+  margin-bottom: 16px;
+  animation: spin 1s linear infinite;
+}
+
+.loading-state p {
+  color: #606266;
+  font-size: 16px;
+}
+
+.no-roles-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.no-roles-state .step-actions {
+  margin-top: 24px;
+  justify-content: center;
+}
+
+.role-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .no-results-message {
   text-align: center;
   padding: 40px 20px;

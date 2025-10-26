@@ -9,8 +9,7 @@ from datetime import datetime
 import json
 
 from models import (
-    db, User, Assessment, CompetencyAssessmentResult,
-    SECompetency, SERole
+    db, User, SECompetency, SERole
 )
 
 competency_service_bp = Blueprint('competency_service', __name__)
@@ -499,113 +498,116 @@ def get_role_competency_requirements(role_id):
         'competency_requirements': competency_requirements
     })
 
-@competency_service_bp.route('/assessment/<int:assessment_id>/competency-questionnaire', methods=['GET'])
-@jwt_required()
-def get_competency_questionnaire(assessment_id):
-    """Generate competency questionnaire based on selected role"""
-    try:
-        user_id = int(get_jwt_identity())
+# REMOVED Phase 3 - These routes use the removed Assessment model
+# Use main_bp routes in routes.py instead (/assessment/start, /assessment/submit, /assessment/results)
 
-        # Get assessment
-        assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
-        if not assessment:
-            return jsonify({'error': 'Assessment not found'}), 404
-
-        # For now, assume role selection is stored in assessment results
-        selected_role_id = assessment.results.get('selected_role_id', 1) if assessment.results else 1
-
-        # Get competency requirements for the role
-        role = next((r for r in SE_ROLES if r['id'] == selected_role_id), SE_ROLES[0])
-
-        # Generate questionnaire for high importance competencies (4-5)
-        role_competency_matrix = {
-            1: {1: 5, 2: 4, 3: 5, 4: 4, 5: 3, 6: 4, 7: 3, 8: 4, 9: 3, 10: 3, 11: 4, 12: 4, 13: 4, 14: 5, 15: 3, 16: 4},
-            # ... (same matrix as above, simplified for brevity)
-        }
-
-        requirements = role_competency_matrix.get(selected_role_id, {})
-        high_importance_competencies = [
-            comp for comp in SE_COMPETENCIES
-            if requirements.get(comp['id'], 3) >= 4
-        ]
-
-        questionnaire = {
-            'assessment_id': assessment_id,
-            'role': role,
-            'competencies': high_importance_competencies,
-            'instructions': 'Rate your current competency level for each indicator on a scale of 1-5',
-            'scale': {
-                '1': 'Beginner - Limited knowledge or experience',
-                '2': 'Basic - Some knowledge, can perform with guidance',
-                '3': 'Intermediate - Good knowledge, can perform independently',
-                '4': 'Advanced - Strong knowledge, can guide others',
-                '5': 'Expert - Extensive knowledge, recognized authority'
-            }
-        }
-
-        return jsonify(questionnaire)
-
-    except Exception as e:
-        current_app.logger.error(f"Questionnaire generation error: {str(e)}")
-        return jsonify({'error': 'Failed to generate questionnaire'}), 500
-
-@competency_service_bp.route('/assessment/<int:assessment_id>/submit-responses', methods=['POST'])
-@jwt_required()
-def submit_competency_responses(assessment_id):
-    """Submit competency assessment responses"""
-    try:
-        user_id = int(get_jwt_identity())
-        data = request.get_json()
-        responses = data.get('responses', {})
-
-        # Get assessment
-        assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
-        if not assessment:
-            return jsonify({'error': 'Assessment not found'}), 404
-
-        # Calculate competency scores
-        competency_scores = {}
-        total_score = 0
-        count = 0
-
-        for competency_code, indicators in responses.items():
-            # Find competency
-            competency = next((c for c in SE_COMPETENCIES if c['code'] == competency_code), None)
-            if competency:
-                # Calculate average score for this competency
-                indicator_scores = list(indicators.values())
-                competency_avg = sum(indicator_scores) / len(indicator_scores) if indicator_scores else 0
-                competency_scores[competency['name']] = competency_avg
-                total_score += competency_avg
-                count += 1
-
-        overall_avg = total_score / count if count > 0 else 0
-
-        # Update assessment
-        assessment.status = 'completed'
-        assessment.score = overall_avg
-        assessment.competency_scores = competency_scores
-        assessment.completion_time_minutes = data.get('completion_time', 0)
-        assessment.completed_at = datetime.utcnow()
-        assessment.results = {
-            'competency_responses': responses,
-            'competency_scores': competency_scores,
-            'overall_score': overall_avg,
-            'competencies_assessed': count
-        }
-
-        db.session.commit()
-
-        return jsonify({
-            'message': 'Assessment completed successfully',
-            'results': {
-                'overall_score': overall_avg,
-                'competency_scores': competency_scores,
-                'competencies_assessed': count
-            }
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Response submission error: {str(e)}")
-        return jsonify({'error': 'Failed to submit responses'}), 500
+# @competency_service_bp.route('/assessment/<int:assessment_id>/competency-questionnaire', methods=['GET'])
+# @jwt_required()
+# def get_competency_questionnaire(assessment_id):
+#     """Generate competency questionnaire based on selected role"""
+#     try:
+#         user_id = int(get_jwt_identity())
+#
+#         # Get assessment
+#         assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
+#         if not assessment:
+#             return jsonify({'error': 'Assessment not found'}), 404
+#
+#         # For now, assume role selection is stored in assessment results
+#         selected_role_id = assessment.results.get('selected_role_id', 1) if assessment.results else 1
+#
+#         # Get competency requirements for the role
+#         role = next((r for r in SE_ROLES if r['id'] == selected_role_id), SE_ROLES[0])
+#
+#         # Generate questionnaire for high importance competencies (4-5)
+#         role_competency_matrix = {
+#             1: {1: 5, 2: 4, 3: 5, 4: 4, 5: 3, 6: 4, 7: 3, 8: 4, 9: 3, 10: 3, 11: 4, 12: 4, 13: 4, 14: 5, 15: 3, 16: 4},
+#             # ... (same matrix as above, simplified for brevity)
+#         }
+#
+#         requirements = role_competency_matrix.get(selected_role_id, {})
+#         high_importance_competencies = [
+#             comp for comp in SE_COMPETENCIES
+#             if requirements.get(comp['id'], 3) >= 4
+#         ]
+#
+#         questionnaire = {
+#             'assessment_id': assessment_id,
+#             'role': role,
+#             'competencies': high_importance_competencies,
+#             'instructions': 'Rate your current competency level for each indicator on a scale of 1-5',
+#             'scale': {
+#                 '1': 'Beginner - Limited knowledge or experience',
+#                 '2': 'Basic - Some knowledge, can perform with guidance',
+#                 '3': 'Intermediate - Good knowledge, can perform independently',
+#                 '4': 'Advanced - Strong knowledge, can guide others',
+#                 '5': 'Expert - Extensive knowledge, recognized authority'
+#             }
+#         }
+#
+#         return jsonify(questionnaire)
+#
+#     except Exception as e:
+#         current_app.logger.error(f"Questionnaire generation error: {str(e)}")
+#         return jsonify({'error': 'Failed to generate questionnaire'}), 500
+#
+# @competency_service_bp.route('/assessment/<int:assessment_id>/submit-responses', methods=['POST'])
+# @jwt_required()
+# def submit_competency_responses(assessment_id):
+#     """Submit competency assessment responses"""
+#     try:
+#         user_id = int(get_jwt_identity())
+#         data = request.get_json()
+#         responses = data.get('responses', {})
+#
+#         # Get assessment
+#         assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
+#         if not assessment:
+#             return jsonify({'error': 'Assessment not found'}), 404
+#
+#         # Calculate competency scores
+#         competency_scores = {}
+#         total_score = 0
+#         count = 0
+#
+#         for competency_code, indicators in responses.items():
+#             # Find competency
+#             competency = next((c for c in SE_COMPETENCIES if c['code'] == competency_code), None)
+#             if competency:
+#                 # Calculate average score for this competency
+#                 indicator_scores = list(indicators.values())
+#                 competency_avg = sum(indicator_scores) / len(indicator_scores) if indicator_scores else 0
+#                 competency_scores[competency['name']] = competency_avg
+#                 total_score += competency_avg
+#                 count += 1
+#
+#         overall_avg = total_score / count if count > 0 else 0
+#
+#         # Update assessment
+#         assessment.status = 'completed'
+#         assessment.score = overall_avg
+#         assessment.competency_scores = competency_scores
+#         assessment.completion_time_minutes = data.get('completion_time', 0)
+#         assessment.completed_at = datetime.utcnow()
+#         assessment.results = {
+#             'competency_responses': responses,
+#             'competency_scores': competency_scores,
+#             'overall_score': overall_avg,
+#             'competencies_assessed': count
+#         }
+#
+#         db.session.commit()
+#
+#         return jsonify({
+#             'message': 'Assessment completed successfully',
+#             'results': {
+#                 'overall_score': overall_avg,
+#                 'competency_scores': competency_scores,
+#                 'competencies_assessed': count
+#             }
+#         })
+#
+#     except Exception as e:
+#         db.session.rollback()
+#         current_app.logger.error(f"Response submission error: {str(e)}")
+#         return jsonify({'error': 'Failed to submit responses'}), 500

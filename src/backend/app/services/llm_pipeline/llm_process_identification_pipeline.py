@@ -4,7 +4,7 @@ import psycopg2
 from psycopg2.extras import DictCursor
 from typing import List
 from langchain.prompts import ChatPromptTemplate
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import ChatOpenAI
 import tiktoken  # Import tiktoken for token counting
 # from langchain.chat_models import init_chat_model
 from langchain_openai import OpenAIEmbeddings
@@ -98,6 +98,12 @@ class ISOProcessInvolvementModel(BaseModel):
 class ISOProcessesInvolvementOutput(BaseModel):
     processes: List[ISOProcessInvolvementModel] = Field(..., description="List of ISO processes and the user's involvement level.")
 
+class RoleSelectionModel(BaseModel):
+    selected_role_id: int = Field(..., description="The ID of the most suitable Systems Engineering role (1-14).")
+    selected_role_name: str = Field(..., description="The name of the selected role.")
+    confidence: str = Field(..., description="Confidence level: 'High', 'Medium', or 'Low'.")
+    reasoning: str = Field(..., description="Brief explanation (2-3 sentences) for why this role was selected based on the tasks and processes.", min_length=20)
+
 # --- Function to check token count ---
 def check_token_count(prompt):
     """
@@ -109,42 +115,25 @@ def check_token_count(prompt):
 # --- Function to initialize the LLM ---
 def init_llm():
     """
-    Initialize the Azure OpenAI LLM using environment variables.
+    Initialize the OpenAI LLM using environment variables.
     """
-    llm = AzureChatOpenAI(
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
         openai_api_key=openai_api_key,
-        openai_api_base=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
-        deployment_name="gpt-4o-mini",
         temperature=0
     )
-    return llm 
-    # return AzureChatOpenAI(
-    #     model=azure_llm_deployment_name,
-    #     openai_api_key=api_key,
-    #     azure_endpoint=api_base,
-    #     api_version=api_version,
-    #     temperature=0
-    # )
+    return llm
 
 def init_creative_llm():
     """
-    Initialize a more creative Azure OpenAI LLM using environment variables.
+    Initialize a more creative OpenAI LLM using environment variables.
     """
-    llm_creative = AzureChatOpenAI(
+    llm_creative = ChatOpenAI(
+        model="gpt-4o-mini",
         openai_api_key=openai_api_key,
-        openai_api_base=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
-        deployment_name="gpt-4o-mini",
         temperature=0.8
     )
-
     return llm_creative
-    # return AzureChatOpenAI(
-    #     model=azure_llm_deployment_name,
-    #     openai_api_key=api_key,
-    #     azure_endpoint=api_base,
-    #     api_version=api_version,
-    #     temperature=0.8
-    # )
 
 # --- Create the validation prompt and chain ---
 def create_validation_prompt():
@@ -314,26 +303,75 @@ def create_reasoning_chain(llm):
     structured_llm = llm.with_structured_output(ISOProcessesInvolvementOutput)
     return prompt | structured_llm
 
+# --- Create the role selection prompt and chain ---
+def create_role_selection_prompt():
+    system_prompt = """
+You are an expert Systems Engineering career advisor. Given a person's work tasks and the ISO processes they are involved in, select the most suitable Systems Engineering role from the 14 standard SE roles.
+
+Available SE Roles:
+1. Customer - Represents the party that orders or uses a service. Has influence on design/technical execution.
+2. Customer Representative - Interface between customer and company. Voice for customer-relevant information.
+3. Project Manager - Responsible for planning and coordination. Monitors resources (time, costs, personnel) and moderates conflicts.
+4. System Engineer - Has overview from requirements to system decomposition. Responsible for integration planning and interfaces.
+5. Specialist Developer - Develops in specialist areas (software, hardware, etc.). Realizes product based on specifications.
+6. Production Planner/Coordinator - Prepares product realization and transfer to customer.
+7. Production Employee - Assembly and manufacture. Integrates system components and verifies functionality.
+8. Quality Engineer/Manager - Ensures quality standards are maintained. Analyzes customer complaints and identifies causes.
+9. Verification and Validation (V&V) Operator - Covers system verification and validation. Ensures system is verifiable and validatable.
+10. Service Technician - Installation, commissioning, training, maintenance, repairs, and after-sales at customer site.
+11. Process and Policy Manager - Develops internal guidelines and controls compliance with policies and laws.
+12. Internal Support - IT support, qualification support, SE support. Advisory and supporting role during development.
+13. Innovation Management - Focuses on commercially successful implementation of products, services, and business models.
+14. Management - Decision-makers, management/department heads. Keeps eye on company goals, visions, and values.
+
+Instructions:
+- Analyze the user's tasks and their involvement in ISO processes
+- Match their responsibilities, support activities, and design work to the role that best fits
+- Consider the depth and breadth of their technical involvement
+- Select the SINGLE most appropriate role (1-14)
+- Provide confidence level: High (very clear match), Medium (good match but some ambiguity), Low (best guess among options)
+- Explain your reasoning in 2-3 sentences
+"""
+    user_prompt = """
+User's Work Tasks:
+{user_tasks}
+
+ISO Processes Involvement:
+{process_involvement}
+
+Based on the above, which of the 14 Systems Engineering roles is the best match?
+"""
+    return ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("user", user_prompt)
+        ]
+    )
+
+def create_role_selection_chain(llm):
+    prompt = create_role_selection_prompt()
+    structured_llm = llm.with_structured_output(RoleSelectionModel)
+    return prompt | structured_llm
+
 # --- Initialize the FAISS retriever ---
 from langchain_openai import AzureOpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
-# Temporarily commented out for initial setup
-# openai_embeddings = OpenAIEmbeddings(
-#     openai_api_key=openai_api_key,
-#     model="text-embedding-ada-002"
-# )
+openai_embeddings = OpenAIEmbeddings(
+    openai_api_key=openai_api_key,
+    model="text-embedding-ada-002"
+)
 
-# vector_store = FAISS.load_local(
-#     "app/faiss_index",  # Directory where the FAISS index is stored
-#     openai_embeddings,
-#     allow_dangerous_deserialization=True
-# )
+vector_store = FAISS.load_local(
+    "app/faiss_index",  # Directory where the FAISS index is stored
+    openai_embeddings,
+    allow_dangerous_deserialization=True
+)
 
-# retriever = vector_store.as_retriever(
-#     search_type="similarity",
-#     search_kwargs={"k": 10}  # Set a higher k initially
-# )
+retriever = vector_store.as_retriever(
+    search_type="similarity",
+    search_kwargs={"k": 10}  # Set a higher k initially
+)
 
 # --- Helper function to format retrieved documents ---
 def format_docs(docs):
@@ -348,6 +386,7 @@ def create_pipeline():
     translation_chain = create_translation_chain(llm)
     #process_identification_chain = create_process_identification_chain(llm_creative)
     reasoning_chain = create_reasoning_chain(llm)
+    role_selection_chain = create_role_selection_chain(llm)
 
     # Fetch process data from the database
     process_data = fetch_processes_from_db()
@@ -411,22 +450,22 @@ def create_pipeline():
         if not identified_processes:
             return "No relevant processes identified based on the user's tasks."
 
-        # Step 5: Use identified processes as retrieval query
+        # Step 5: Use identified processes as retrieval query (FAISS SEMANTIC SEARCH)
         retrieval_query = " ".join(
             [
                 f"{process['name']} {process['description'][:200]}"
                 for process in process_data if process["name"].lower() in [p.lower() for p in identified_processes]
             ]
         )
-        
+
         k = len(identified_processes) + 4  # Adjust k based on the number of identified processes
         print(f"Retrieval Query: {retrieval_query}, Number of Chunks to Retrieve: {k}")
 
-        # Step 6: Retrieve relevant documents
+        # Step 6: Retrieve relevant documents using FAISS
         retrieved_docs = retriever.get_relevant_documents(retrieval_query)
         retrieved_docs = retrieved_docs[:k]  # Ensure we only take the top k documents
 
-        print("Retrieved docs:",retrieved_docs)
+        print("Retrieved docs:", retrieved_docs)
         if not retrieved_docs:
             return "No documents retrieved from the FAISS store."
 
@@ -451,12 +490,10 @@ def create_pipeline():
         if num_tokens > max_tokens:
             print("Token count exceeds the limit. Adjusting retrieved documents.")
             # Strategy: Reduce the number of retrieved documents
-            # Or summarize the retrieved documents
-            # For this example, we'll reduce the number of documents
             while num_tokens > max_tokens and len(retrieved_docs) > 1:
                 retrieved_docs = retrieved_docs[:-1]  # Remove the last document
                 retrieved_iso_processes = format_docs(retrieved_docs)
-                reasoning_prompt_text = reasoning_chain.prompt.format_prompt(
+                reasoning_prompt_text = reasoning_prompt.format_prompt(
                     user_tasks=translated_tasks_text,
                     retrieved_iso_processes=retrieved_iso_processes
                 ).to_string()
@@ -464,12 +501,11 @@ def create_pipeline():
                 print(f"Adjusted number of tokens: {num_tokens}")
 
             if num_tokens > max_tokens:
-                # If still too long, consider summarizing the retrieved documents
+                # If still too long, summarize the retrieved documents
                 print("Even after adjusting, token count is too high. Summarizing retrieved documents.")
-                # Simple summarization (e.g., take first N characters)
                 summary_length = int(len(retrieved_iso_processes) * (max_tokens / num_tokens))
                 retrieved_iso_processes = retrieved_iso_processes[:summary_length]
-                reasoning_prompt_text = reasoning_chain.prompt.format_prompt(
+                reasoning_prompt_text = reasoning_prompt.format_prompt(
                     user_tasks=translated_tasks_text,
                     retrieved_iso_processes=retrieved_iso_processes
                 ).to_string()
@@ -484,10 +520,32 @@ def create_pipeline():
         reasoning_result = reasoning_chain.invoke(reasoning_input)
         print("Reasoning Result:", reasoning_result)
 
+        # Step 9: NEW - LLM-based role selection
+        # Format process involvement for role selection prompt
+        process_involvement_text = "\n".join([
+            f"- {p.process_name}: {p.involvement}"
+            for p in reasoning_result.processes
+            if p.involvement != 'Not performing'
+        ])
+
+        role_selection_input = {
+            "user_tasks": translated_tasks_text,
+            "process_involvement": process_involvement_text
+        }
+
+        llm_role_selection = role_selection_chain.invoke(role_selection_input)
+        print("LLM Role Selection:", llm_role_selection)
+
         #return reasoning_result
         return {
             "status": "success",
-            "result": reasoning_result
+            "result": reasoning_result,
+            "llm_role_suggestion": {
+                "role_id": llm_role_selection.selected_role_id,
+                "role_name": llm_role_selection.selected_role_name,
+                "confidence": llm_role_selection.confidence,
+                "reasoning": llm_role_selection.reasoning
+            }
         }
 
     return process_tasks

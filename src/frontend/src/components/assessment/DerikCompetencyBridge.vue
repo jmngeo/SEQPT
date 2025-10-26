@@ -1,7 +1,7 @@
 <template>
   <div class="derik-competency-bridge">
-    <!-- Role-Based Assessment Integration -->
-    <div v-if="mode === 'role-based' && !showCompetencySurvey" class="role-based-assessment">
+    <!-- Role-Based Competency Assessment -->
+    <div v-if="!showCompetencySurvey" class="role-based-assessment">
       <div class="assessment-header">
         <h3>Role-Based Competency Assessment</h3>
         <p>Select the SE roles that best match your current or target position. The system will assess competencies specific to these roles.</p>
@@ -51,125 +51,6 @@
           size="large"
         >
           Start Competency Assessment ({{ selectedRoles.length }} roles)
-        </el-button>
-      </div>
-    </div>
-
-    <!-- Task-Based Assessment Integration -->
-    <div v-else-if="mode === 'task-based' && !showCompetencySurvey" class="task-based-assessment">
-      <div class="assessment-header">
-        <h3>Task-Based Competency Assessment</h3>
-        <p>Describe your current job tasks and responsibilities. Our AI system will analyze them to identify relevant SE processes and competencies.</p>
-      </div>
-
-      <el-form :model="taskForm" :rules="taskRules" ref="taskFormRef" label-width="200px">
-        <el-form-item label="Tasks you are responsible for" prop="responsibleTasks" required>
-          <el-input
-            v-model="taskForm.responsibleTasks"
-            type="textarea"
-            :rows="5"
-            placeholder="Please describe the primary tasks for which you are responsible."
-          />
-        </el-form-item>
-
-        <el-form-item label="Tasks that you support" prop="supportingTasks">
-          <el-input
-            v-model="taskForm.supportingTasks"
-            type="textarea"
-            :rows="5"
-            placeholder="Please describe tasks you provide support for."
-          />
-        </el-form-item>
-
-        <el-form-item label="Tasks and processes that you define or design" prop="designingTasks">
-          <el-input
-            v-model="taskForm.designingTasks"
-            type="textarea"
-            :rows="5"
-            placeholder="Please describe tasks and processes you are involved in defining or designing."
-          />
-        </el-form-item>
-      </el-form>
-
-      <!-- Loading Indicator - Derik's Style -->
-      <el-card v-if="analyzing" class="loading-card">
-        <div class="loading-message">{{ loadingMessage }}</div>
-        <el-progress :percentage="100" :show-text="false" :indeterminate="true" />
-      </el-card>
-
-      <!-- Analysis Results - Derik's Format -->
-      <el-card v-if="!analyzing && analysisResults && analysisResults.processes && analysisResults.processes.length" class="results-card">
-        <template #header>
-          <div class="results-title">Identified ISO Processes</div>
-        </template>
-
-        <el-table :data="analysisResults.processes" style="width: 100%">
-          <el-table-column prop="process_name" label="Process Name" class-name="process-name" />
-          <el-table-column prop="involvement" label="Involvement" class-name="involvement" />
-        </el-table>
-
-        <div class="button-container">
-          <el-button
-            type="success"
-            size="large"
-            @click="proceedToSurvey"
-            class="proceed-button"
-          >
-            Proceed to Survey
-          </el-button>
-        </div>
-      </el-card>
-
-      <!-- Next Button - Only show when not loading and no results -->
-      <div v-if="!analyzing && !analysisResults" class="assessment-actions">
-        <el-button @click="$emit('back')" size="large">
-          Previous
-        </el-button>
-        <el-button
-          type="primary"
-          @click="analyzeTaskDescription"
-          :loading="analyzing"
-          :disabled="!isTaskFormValid"
-          size="large"
-        >
-          <el-icon><MagicStick /></el-icon>
-          Analyze Tasks
-        </el-button>
-      </div>
-    </div>
-
-    <!-- Full Competency Assessment Integration -->
-    <div v-else-if="mode === 'full-competency'" class="full-competency-assessment">
-      <div class="assessment-header">
-        <h3>Full Competency Assessment</h3>
-        <p>Complete assessment across all 16 INCOSE Systems Engineering competencies. This comprehensive evaluation will:</p>
-        <ul>
-          <li>Analyze your competency profile across all SE domains</li>
-          <li>Suggest the most suitable SE roles based on your strengths</li>
-          <li>Identify potential career development paths</li>
-          <li>Generate personalized learning objectives</li>
-        </ul>
-
-        <el-alert
-          title="Assessment Duration"
-          description="This comprehensive assessment typically takes 15-20 minutes to complete."
-          type="info"
-          show-icon
-          :closable="false"
-        />
-      </div>
-
-      <div class="assessment-actions">
-        <el-button @click="$emit('back')" size="large">
-          Previous
-        </el-button>
-        <el-button
-          type="primary"
-          @click="startFullAssessment"
-          :loading="loading"
-          size="large"
-        >
-          Start Full Competency Assessment
         </el-button>
       </div>
     </div>
@@ -332,14 +213,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Check, MagicStick, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Check, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 
 // Props
 const props = defineProps({
-  mode: {
-    type: String,
-    required: true,
-    validator: (value) => ['role-based', 'task-based', 'full-competency'].includes(value)
+  preselectedRoles: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -348,13 +228,10 @@ const emit = defineEmits(['back', 'completed'])
 
 // State
 const loading = ref(false)
-const analyzing = ref(false)
 const roles = ref([])
 const selectedRoles = ref([])
-const analysisResults = ref(null)
 const showAssessment = ref(false)
 const assessmentUrl = ref('')
-const taskFormRef = ref()
 const showCompetencySurvey = ref(false)
 const competencies = ref([])
 const currentCompetencyIndex = ref(0)
@@ -364,36 +241,9 @@ const selectedGroups = ref([])
 const showSubmitModal = ref(false)
 const showCancelModal = ref(false) // Confirmation modal for returning to role selection
 const allCompetencyData = ref({}) // Cache for all competency indicators
-const loadingMessage = ref('') // Progress messages during analysis
-const taskBasedUsername = ref('') // Store username for task-based assessments
 const submitting = ref(false) // Track submission state
 const submissionMessage = ref('') // Progress messages during submission
-
-// Task form - Derik's structure
-const taskForm = ref({
-  responsibleTasks: '',
-  supportingTasks: '',
-  designingTasks: ''
-})
-
-const taskRules = {
-  responsibleTasks: [
-    { required: true, message: 'Tasks you are responsible for is required', trigger: 'blur' }
-  ]
-}
-
-// Computed - Derik's validation logic
-const isTaskFormValid = computed(() => {
-  // At least one field must have meaningful content (not just default values)
-  const hasResponsibleTasks = taskForm.value.responsibleTasks.trim() &&
-                              taskForm.value.responsibleTasks.trim() !== 'Not responsible for any tasks'
-  const hasSupportingTasks = taskForm.value.supportingTasks.trim() &&
-                             taskForm.value.supportingTasks.trim() !== 'Not supporting any tasks'
-  const hasDesigningTasks = taskForm.value.designingTasks.trim() &&
-                            taskForm.value.designingTasks.trim() !== 'Not designing any tasks'
-
-  return hasResponsibleTasks || hasSupportingTasks || hasDesigningTasks
-})
+const assessment_id = ref(null) // Store assessment ID for new authenticated flow
 
 // Methods
 const isRoleSelected = (roleId) => {
@@ -421,7 +271,7 @@ const loadRoles = async () => {
   try {
     loading.value = true
     // Use SE-QPT's backend API endpoint
-    const response = await fetch('http://localhost:5003/roles')
+    const response = await fetch('http://localhost:5000/roles')
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -435,133 +285,6 @@ const loadRoles = async () => {
     console.error('Error loading roles:', error)
   } finally {
     loading.value = false
-  }
-}
-
-// Simulate progress messages during processing - Derik's exact logic
-const simulateProgress = () => {
-  const messages = [
-    'Analyzing your tasks and responsibilities...',
-    'Understanding your involvement in different ISO processes...',
-    'Leveraging our AI model to map your tasks to ISO standards...',
-    'Finalizing the ISO processes you are performing...'
-  ]
-
-  let index = 0
-  loadingMessage.value = messages[index]
-
-  const interval = setInterval(() => {
-    index++
-    if (index < messages.length) {
-      loadingMessage.value = messages[index]
-    } else {
-      clearInterval(interval)
-    }
-  }, 7000) // Update message every 7 seconds
-
-  return interval
-}
-
-// Set default values if fields are empty - Derik's validation logic
-const setDefaultValues = () => {
-  if (!taskForm.value.responsibleTasks.trim()) {
-    taskForm.value.responsibleTasks = 'Not responsible for any tasks'
-  }
-  if (!taskForm.value.supportingTasks.trim()) {
-    taskForm.value.supportingTasks = 'Not supporting any tasks'
-  }
-  if (!taskForm.value.designingTasks.trim()) {
-    taskForm.value.designingTasks = 'Not designing any tasks'
-  }
-}
-
-// Validate input before analysis - Derik's validation logic
-const validateTaskInput = () => {
-  setDefaultValues()
-  const allDefaults = [
-    taskForm.value.responsibleTasks.trim(),
-    taskForm.value.supportingTasks.trim(),
-    taskForm.value.designingTasks.trim()
-  ].every(task =>
-    task === 'Not responsible for any tasks' ||
-    task === 'Not supporting any tasks' ||
-    task === 'Not designing any tasks'
-  )
-
-  if (allDefaults) {
-    ElMessage.warning('Please provide at least one valid task description.')
-    return false
-  }
-
-  return true
-}
-
-const analyzeTaskDescription = async () => {
-  if (!validateTaskInput()) return
-
-  try {
-    analyzing.value = true
-    loadingMessage.value = '' // Reset loading message
-
-    // Start progress simulation
-    const progressInterval = simulateProgress()
-
-    // Create tasks object in Derik's format
-    const tasksResponsibilities = {
-      responsible_for: taskForm.value.responsibleTasks.split('\n').map(task => task.trim()).filter(task => task),
-      supporting: taskForm.value.supportingTasks.split('\n').map(task => task.trim()).filter(task => task),
-      designing: taskForm.value.designingTasks.split('\n').map(task => task.trim()).filter(task => task)
-    }
-
-    // Generate and store username for this task-based assessment
-    taskBasedUsername.value = `seqpt_user_${Date.now()}`
-
-    // Prepare payload matching Derik's format
-    const payload = {
-      username: taskBasedUsername.value,
-      organizationId: 1,
-      tasks: tasksResponsibilities
-    }
-
-    // Call Derik's /findProcesses endpoint with correct payload format
-    const response = await fetch('http://localhost:5003/findProcesses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)  // ✅ Use the correctly formatted payload
-    })
-
-    // Clear progress interval
-    clearInterval(progressInterval)
-
-    if (response.ok) {
-      const result = await response.json()
-
-      // Backend returns { status: "success", processes: [...] }
-      // Processes already have the correct format: { process_name, involvement }
-      const processes = result.processes || []
-
-      analysisResults.value = {
-        processes: processes,
-        taskContext: tasksResponsibilities
-      }
-
-      ElMessage.success('Task analysis completed successfully!')
-
-    } else if (response.status === 400) {
-      const errorData = await response.json()
-      ElMessage.error(errorData.error || 'Invalid task descriptions. Please provide more detailed information.')
-    } else {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-  } catch (error) {
-    console.error('Task analysis error:', error)
-    ElMessage.error('An unexpected error occurred. Please check your input or try again later.')
-  } finally {
-    analyzing.value = false
-    loadingMessage.value = ''
   }
 }
 
@@ -595,7 +318,7 @@ const loadCompetenciesForRoles = async () => {
     }
 
     // Get competencies for the selected roles using Derik's API format
-    const response = await fetch('http://localhost:5003/get_required_competencies_for_roles', {
+    const response = await fetch('http://localhost:5000/get_required_competencies_for_roles', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -636,93 +359,6 @@ const loadCompetenciesForRoles = async () => {
   }
 }
 
-
-// Proceed directly to survey - Derik's logic
-const proceedToSurvey = async () => {
-  try {
-    loading.value = true
-
-    // Load all 16 competencies for task-based assessment
-    const competencyResponse = await fetch('http://localhost:5003/competencies')
-    if (!competencyResponse.ok) {
-      throw new Error('Failed to load competencies')
-    }
-    const competencyData = await competencyResponse.json()
-
-    // Backend returns array directly, not wrapped in {competencies: [...]}
-    // Transform to match the expected format with competency_id
-    competencies.value = Array.isArray(competencyData)
-      ? competencyData.map(comp => ({
-          competency_id: comp.id,
-          name: comp.competency_name,
-          category: comp.competency_area
-        }))
-      : (competencyData.competencies || []).map(comp => ({
-          competency_id: comp.id,
-          name: comp.competency_name || comp.name,
-          category: comp.competency_area || comp.category
-        }))
-
-    if (competencies.value.length > 0) {
-      await loadAllCompetencyData() // Load all indicators at once for fast transitions
-      setCurrentCompetencyData() // Set indicators for the first competency
-      showCompetencySurvey.value = true
-      ElMessage.success(`Starting task-based assessment with ${competencies.value.length} competencies`)
-    }
-
-  } catch (error) {
-    ElMessage.error('Failed to start competency survey')
-    console.error('Error starting survey:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-const startTaskBasedAssessment = async () => {
-  // This function is now replaced by proceedToSurvey for direct transition
-  await proceedToSurvey()
-}
-
-const startFullAssessment = async () => {
-  try {
-    loading.value = true
-
-    // Load all competencies first
-    const competencyResponse = await fetch('http://localhost:5003/competencies')
-    if (!competencyResponse.ok) {
-      throw new Error('Failed to load competencies')
-    }
-    const competencyData = await competencyResponse.json()
-
-    // Backend returns array directly, not wrapped in {competencies: [...]}
-    // Transform to match the expected format with competency_id
-    competencies.value = Array.isArray(competencyData)
-      ? competencyData.map(comp => ({
-          competency_id: comp.id,
-          name: comp.competency_name,
-          category: comp.competency_area
-        }))
-      : (competencyData.competencies || []).map(comp => ({
-          competency_id: comp.id,
-          name: comp.competency_name || comp.name,
-          category: comp.competency_area || comp.category
-        }))
-
-    if (competencies.value.length > 0) {
-      await loadAllCompetencyData() // Load all indicators at once for fast transitions
-      setCurrentCompetencyData() // Set indicators for the first competency
-      showCompetencySurvey.value = true
-      ElMessage.success(`Starting full assessment with ${competencies.value.length} competencies`)
-    }
-
-  } catch (error) {
-    ElMessage.error('Failed to start full competency assessment')
-    console.error('Error starting assessment:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
 const onAssessmentLoad = () => {
   // Handle assessment iframe load
   console.log('Assessment loaded')
@@ -749,7 +385,7 @@ const loadAllCompetencyData = async () => {
     // Fetch indicators for each competency individually
     const indicatorPromises = competencies.value.map(async (comp) => {
       console.log(`Fetching indicators for competency ${comp.competency_id}`)
-      const response = await fetch(`http://localhost:5003/get_competency_indicators_for_competency/${comp.competency_id}`)
+      const response = await fetch(`http://localhost:5000/get_competency_indicators_for_competency/${comp.competency_id}`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -921,29 +557,30 @@ const submitSurvey = async () => {
     // Start progress messages
     const progressInterval = simulateSubmissionProgress()
 
-    // Step 1: Determine username based on assessment mode
-    let username
-    if (props.mode === 'task-based' && taskBasedUsername.value) {
-      // Reuse username from task analysis for task-based assessments
-      username = taskBasedUsername.value
-      console.log('Using task-based username:', username)
-    } else {
-      // Create a new survey user for role-based and full-competency assessments
-      const newUserResponse = await fetch('http://localhost:5003/new_survey_user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+    // Step 1: Create authenticated assessment using new endpoint
+    const user = JSON.parse(localStorage.getItem('user'))
+
+    const assessmentResponse = await fetch('http://localhost:5000/assessment/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        user_id: user.id,
+        organization_id: user.organization_id || 1,
+        assessment_type: 'role_based'  // Always role-based in Phase 2
       })
+    })
 
-      if (!newUserResponse.ok) {
-        throw new Error('Failed to create survey user')
-      }
-
-      const userData = await newUserResponse.json()
-      username = userData.username
-      console.log('Created survey user:', username)
+    if (!assessmentResponse.ok) {
+      throw new Error('Failed to start assessment')
     }
+
+    const assessmentData = await assessmentResponse.json()
+    assessment_id.value = assessmentData.assessment_id
+    const username = assessmentData.username
+    console.log('Created authenticated assessment:', assessment_id.value, 'for user:', username)
 
     // Step 2: Prepare competency scores using Derik's scoring logic
     const competencyScores = Object.entries(competencyResponses.value).map(([competencyId, response]) => {
@@ -963,57 +600,29 @@ const submitSurvey = async () => {
       }
     })
 
-    // Step 3: Determine survey_type based on assessment mode
-    let surveyType = 'known_roles'  // Default
-    if (props.mode === 'task-based') {
-      surveyType = 'unknown_roles'  // Task-based uses UnknownRoleCompetencyMatrix
-    } else if (props.mode === 'full-competency') {
-      surveyType = 'all_roles'  // Full assessment suggests roles
-    }
-    // role-based remains 'known_roles'
-
-    // Step 4: Get admin_user_id, organization_id and admin user name from localStorage (from login)
-    const userData = localStorage.getItem('user')
-    let admin_user_id = null
-    let organization_id = 1  // Fallback to default organization
-    let adminUserName = 'SE-QPT User'  // Fallback if localStorage data is unavailable
-    if (userData) {
-      try {
-        const user = JSON.parse(userData)
-        admin_user_id = user.id
-        organization_id = user.organization_id || 1  // Use user's org_id or fallback to 1
-        // Use actual logged-in admin user's name instead of hardcoded value
-        adminUserName = user.username || user.name || `User ${user.id}` || 'SE-QPT User'
-      } catch (e) {
-        console.warn('Could not parse user data from localStorage:', e)
-      }
-    }
-
-    // Step 5: Prepare survey data
-    const surveyData = {
-      organization_id: organization_id,  // Use logged-in user's organization_id
-      full_name: adminUserName,  // Use actual admin user name from localStorage
-      username: username,  // Use the generated username
-      tasks_responsibilities: analysisResults.value?.taskContext || 'SE-QPT Assessment',
+    // Step 3: Prepare submission data for new endpoint
+    const submissionData = {
+      competency_scores: competencyScores.map(score => ({
+        competency_id: score.competencyId,
+        user_score: score.score
+      })),
       selected_roles: selectedRoles.value.map(role => ({
-        id: role.id,
+        role_id: role.id,
         name: role.name
       })),
-      competency_scores: competencyScores,
-      survey_type: surveyType,  // ✅ Dynamic based on mode
-      admin_user_id: admin_user_id  // NEW: Pass logged-in user ID for assessment tracking
+      tasks_responsibilities: null  // Always null for role-based assessment
     }
 
-    console.log('Submitting survey data:', surveyData)
+    console.log('Submitting assessment data:', submissionData)
 
-    // Step 6: Submit to Derik's API
-    const response = await fetch('http://localhost:5003/submit_survey', {
+    // Step 4: Submit to new authenticated endpoint
+    const response = await fetch(`http://localhost:5000/assessment/${assessment_id.value}/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
-      body: JSON.stringify(surveyData)
+      body: JSON.stringify(submissionData)
     })
 
     // Clear progress interval after submission completes
@@ -1021,7 +630,6 @@ const submitSurvey = async () => {
 
     if (response.ok) {
       const responseData = await response.json()
-      const assessment_id = responseData.assessment_id  // NEW: Capture assessment ID from response
 
       submissionMessage.value = 'Assessment completed successfully!'
       ElMessage.success('Survey submitted successfully!')
@@ -1030,17 +638,16 @@ const submitSurvey = async () => {
       await new Promise(resolve => setTimeout(resolve, 500))
 
       emit('completed', {
-        type: surveyType,  // ✅ Match backend expectations dynamically
+        type: 'role-based',  // Always role-based in Phase 2
         selectedRoles: selectedRoles.value,
         competencyScores: competencyScores,
-        surveyData: surveyData,
-        assessment_id: assessment_id,  // NEW: Pass assessment ID for persistent result URLs
-        username: username  // Pass username for result fetching
+        assessment_id: assessment_id.value,  // Pass assessment ID for results
+        username: username  // Pass username for backward compatibility
       })
     } else {
       const errorData = await response.json()
-      console.error('Submit survey error:', errorData)
-      throw new Error(errorData.error || 'Failed to submit survey')
+      console.error('Submit assessment error:', errorData)
+      throw new Error(errorData.error || 'Failed to submit assessment')
     }
 
   } catch (error) {
@@ -1055,9 +662,24 @@ const submitSurvey = async () => {
 }
 
 // Lifecycle
-onMounted(() => {
-  if (props.mode === 'role-based') {
-    loadRoles()
+onMounted(async () => {
+  await loadRoles()
+
+  // If roles are preselected from Phase 2 Task 1, skip role selection and start assessment
+  if (props.preselectedRoles && props.preselectedRoles.length > 0) {
+    console.log('[DerikCompetencyBridge] Preselected roles detected:', props.preselectedRoles)
+
+    // Map preselected role IDs to role objects
+    selectedRoles.value = roles.value.filter(role =>
+      props.preselectedRoles.includes(role.id)
+    )
+
+    console.log('[DerikCompetencyBridge] Auto-starting assessment for preselected roles:', selectedRoles.value)
+
+    // Automatically start the assessment
+    if (selectedRoles.value.length > 0) {
+      await startRoleBasedAssessment()
+    }
   }
 })
 </script>

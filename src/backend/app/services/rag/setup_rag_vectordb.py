@@ -19,10 +19,8 @@ def setup_vector_database():
     """Setup ChromaDB with learning objective templates"""
     logger.info("Initializing RAG Learning Objective Generator...")
 
-    # Initialize the RAG pipeline
-    rag_generator = RAGLearningObjectiveGenerator(
-        vector_db_path="../../../../data/rag_vectordb"
-    )
+    # Initialize the RAG pipeline (uses default absolute path from PROJECT_ROOT)
+    rag_generator = RAGLearningObjectiveGenerator()
 
     # Setup vector database with force rebuild
     logger.info("Setting up vector database...")

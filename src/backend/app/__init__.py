@@ -29,8 +29,11 @@ def create_app(config_name='development'):
     # Configuration
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     # app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://seqpt_user:seqpt_pass@localhost:5432/seqpt')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///seqpt.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://ma0349:MA0349_2025@localhost:5432/competency_assessment')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # DEBUG: Log database connection
+    print(f"[DATABASE] Using: {app.config['SQLALCHEMY_DATABASE_URI']}")
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-string')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 
@@ -62,18 +65,18 @@ def create_app(config_name='development'):
     # Register blueprints
     from app.routes import main_bp  # Unified routes (main + MVP)
     # from app.auth import auth_bp  # Disabled - using MVP auth system instead
-    from app.api import api_bp
-    from app.admin import admin_bp
-    from app.questionnaire_api import questionnaire_bp
-    from app.module_api import module_bp
+    # from app.api import api_bp  # REMOVED Phase 3 - Broken (uses removed models)
+    # from app.admin import admin_bp  # REMOVED Phase 3 - Broken (uses removed models)
+    # from app.questionnaire_api import questionnaire_bp  # REMOVED Phase 2 - Unused (empty tables)
+    # from app.module_api import module_bp  # REMOVED Phase 2 - Unused (empty tables)
     from app.competency_service import competency_service_bp
 
     app.register_blueprint(main_bp)  # All routes now in single blueprint
     # app.register_blueprint(auth_bp, url_prefix='/auth')  # Disabled - using MVP auth system instead
-    app.register_blueprint(api_bp, url_prefix='/api')
-    app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(questionnaire_bp, url_prefix='/api')
-    app.register_blueprint(module_bp, url_prefix='/api')
+    # app.register_blueprint(api_bp, url_prefix='/api')  # REMOVED Phase 3 - Archived to archive/blueprints/api.py
+    # app.register_blueprint(admin_bp, url_prefix='/admin')  # REMOVED Phase 3 - Archived to archive/blueprints/admin.py
+    # app.register_blueprint(questionnaire_bp, url_prefix='/api')  # REMOVED Phase 2 - Unused
+    # app.register_blueprint(module_bp, url_prefix='/api')  # REMOVED Phase 2 - Unused
     app.register_blueprint(competency_service_bp, url_prefix='/api/competency')
 
     print("Unified routes registered successfully (main + MVP in single blueprint)")
@@ -82,19 +85,20 @@ def create_app(config_name='development'):
     try:
         from app.derik_integration import derik_bp
         app.register_blueprint(derik_bp, url_prefix='/api/derik')
-        print("Derik's competency assessor integration enabled")
+        print("Derik's competency assessor integration enabled (bridge routes only)")
     except Exception as e:
         print(f"Warning: Derik's competency assessor not available: {e}")
         pass
 
-    # Import SE-QPT RAG routes
-    try:
-        from app.seqpt_routes import seqpt_bp
-        app.register_blueprint(seqpt_bp, url_prefix='/api/seqpt')
-        print("SE-QPT RAG routes registered successfully")
-    except Exception as e:
-        print(f"Warning: SE-QPT RAG routes not available: {e}")
-        pass
+    # Import SE-QPT RAG routes - REMOVED Phase 3 - Broken (uses removed models)
+    # Archived to archive/blueprints/seqpt_routes.py
+    # try:
+    #     from app.seqpt_routes import seqpt_bp
+    #     app.register_blueprint(seqpt_bp, url_prefix='/api/seqpt')
+    #     print("SE-QPT RAG routes registered successfully")
+    # except Exception as e:
+    #     print(f"Warning: SE-QPT RAG routes not available: {e}")
+    #     pass
 
     # Error handlers
     @app.errorhandler(404)

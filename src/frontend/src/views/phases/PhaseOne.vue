@@ -177,16 +177,6 @@
                     >
                       <!-- Strategy Name -->
                       <h5 class="strategy-name-simple">{{ strategy.strategyName }}</h5>
-
-                      <!-- Warning if exists -->
-                      <el-alert
-                        v-if="strategy.warning"
-                        :title="strategy.warning"
-                        type="warning"
-                        :closable="false"
-                        show-icon
-                        class="strategy-warning-small"
-                      />
                     </div>
                   </div>
 
@@ -513,16 +503,6 @@
                     >
                       <!-- Strategy Name -->
                       <h5 class="strategy-name-simple">{{ strategy.strategyName }}</h5>
-
-                      <!-- Warning if exists -->
-                      <el-alert
-                        v-if="strategy.warning"
-                        :title="strategy.warning"
-                        type="warning"
-                        :closable="false"
-                        show-icon
-                        class="strategy-warning-small"
-                      />
                     </div>
                   </div>
 
@@ -615,7 +595,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Plus, View, User, OfficeBuilding } from '@element-plus/icons-vue'
@@ -850,9 +830,18 @@ const previousStep = () => {
 // Handle role identification completion
 const handleRoleIdentificationComplete = (data) => {
   console.log('[PhaseOne] Role identification complete:', data)
+  console.log('[PhaseOne] data.roles structure:', JSON.stringify(data.roles, null, 2))
+  console.log('[PhaseOne] data.roles.roles:', data.roles?.roles)
+  console.log('[PhaseOne] data.roles.count:', data.roles?.count)
 
   // Store the role identification data
+  // IMPORTANT: data.roles is { roles: [...], count: N }
+  // So after assignment, phase1RolesData.value = { roles: [...], count: N }
+  // Template expects phase1RolesData.roles (the array)
   phase1RolesData.value = data.roles
+
+  console.log('[PhaseOne] After assignment - phase1RolesData.value:', phase1RolesData.value)
+  console.log('[PhaseOne] phase1RolesData.value.roles length:', phase1RolesData.value?.roles?.length)
 
   // Normalize target group data structure to match what we expect from API
   // data.targetGroup has { sizeData, targetGroupId } structure
@@ -867,6 +856,8 @@ const handleRoleIdentificationComplete = (data) => {
   } else {
     phase1TargetGroupData.value = data.targetGroup
   }
+
+  console.log('[PhaseOne] After assignment - phase1TargetGroupData.value:', phase1TargetGroupData.value)
 
   // Show success message
   ElMessage({
@@ -922,13 +913,19 @@ const handleMaturityCalculated = async ({ answers, results }) => {
         const response = await phase1Api.maturity.save(authStore.organizationId, answers, results)
         console.log('[Phase1] Maturity save response:', response)
 
-        // Attach the ID to maturityResults for use in Task 2
-        if (response?.data?.id) {
+        // Attach the ID to maturityResults for use in Task 2 and Task 3
+        if (response?.id) {
           maturityResults.value = {
             ...results,
-            id: response.data.id
+            id: response.id,
+            strategyInputs: {
+              seProcessesValue: answers.seRolesProcesses,
+              rolloutScopeValue: answers.rolloutScope,
+              seMindsetValue: answers.seMindset,
+              knowledgeBaseValue: answers.knowledgeBase
+            }
           }
-          console.log('[Phase1] Maturity ID attached:', response.data.id)
+          console.log('[Phase1] Maturity ID attached:', response.id)
         }
 
         ElMessage.success('Maturity assessment saved successfully!')
@@ -1245,6 +1242,8 @@ const loadLatestMaturityAssessment = async () => {
       showMaturityResults.value = true
 
       console.log('[Phase1] Loaded maturity data successfully')
+      console.log('[Phase1] maturityResults.value:', JSON.stringify(maturityResults.value, null, 2))
+      console.log('[Phase1] savedResults object:', savedResults)
     } else {
       console.log('[Phase1] No existing maturity assessment found')
     }
@@ -1330,12 +1329,14 @@ const loadLatestTask2Data = async () => {
       console.log('[Phase1] Target group API response:', targetGroupResponse.data)
 
       if (targetGroupResponse.data.success && targetGroupResponse.data.data) {
-        const tg = targetGroupResponse.data.data // API returns data.data, not data.targetGroup
+        const tg = targetGroupResponse.data.data // API returns data.data
+        // Handle both snake_case and camelCase field names
         phase1TargetGroupData.value = {
-          size_range: tg.sizeRange, // API uses camelCase
-          size_category: tg.sizeCategory,
-          estimated_count: tg.estimatedCount,
-          maturityId: tg.maturityId
+          size_range: tg.range || tg.sizeRange || tg.size_range,
+          size_category: tg.category || tg.sizeCategory || tg.size_category,
+          estimated_count: tg.value || tg.estimatedCount || tg.estimated_count,
+          label: tg.label,
+          maturityId: tg.maturityId || tg.maturity_id
         }
         console.log('[Phase1] Loaded existing target group:', phase1TargetGroupData.value.size_range)
       } else {
@@ -1652,29 +1653,31 @@ const retakeAssessment = async () => {
       }
     )
 
-    // Clear all response data to start fresh
-    maturityResponse.value = null
-    archetypeResponse.value = null
-    freshComputedArchetype.value = null
+    console.log('[Phase1] Retake assessment initiated - keeping prefilled data')
 
-    // Clear localStorage cache
-    const userId = authStore.userId
-    if (userId) {
-      localStorage.removeItem(`se-qpt-phase1-data-user-${userId}`)
-      console.log('Cleared localStorage for user', userId)
-    }
+    // DON'T clear the data - keep it prefilled for editing
+    // maturityAnswers, maturityResults, phase1RolesData, phase1TargetGroupData, phase1StrategyData
+    // All stay populated so the user can see and edit their previous responses
 
-    // Reset completion flags
+    // Keep showMaturityResults true so results are visible
+    showMaturityResults.value = true
+
+    // Reset completion flags so user can save again after editing
     maturityCompleted.value = false
+    strategyCompleted.value = false
     archetypeCompleted.value = false
 
-    // Reset to step 1 to restart the assessment
+    // Reset to step 1 to let user edit from the beginning
     currentStep.value = 1
 
-    // Reload questionnaires
-    await loadMaturityQuestionnaire()
+    console.log('[Phase1] Reset to step 1 with prefilled data:', {
+      maturityAnswers: maturityAnswers.value,
+      roles: phase1RolesData.value?.count,
+      targetGroup: phase1TargetGroupData.value?.size_range,
+      strategies: phase1StrategyData.value?.count
+    })
 
-    ElMessage.success('You can now retake the Phase 1 assessment')
+    ElMessage.success('You can now retake the Phase 1 assessment with your previous answers prefilled')
   } catch (error) {
     // User cancelled
     if (error !== 'cancel') {
@@ -1697,8 +1700,16 @@ const completePhase = async () => {
 
     // Validate that we have the required data
     // Check for Phase 1 Task 1 (Maturity) and Task 3 (Strategy Selection) completion
-    if (!maturityCompleted.value || !strategyCompleted.value) {
-      ElMessage.error('Please complete both maturity assessment (Task 1) and strategy selection (Task 3) before proceeding.')
+    // Check actual data existence instead of just completion flags to support partial retakes
+    const hasMaturityData = maturityResults.value && maturityResults.value.id
+    const hasStrategyData = phase1StrategyData.value && phase1StrategyData.value.strategies && phase1StrategyData.value.strategies.length > 0
+
+    if (!hasMaturityData || !hasStrategyData) {
+      const missingTasks = []
+      if (!hasMaturityData) missingTasks.push('Task 1 (Maturity Assessment)')
+      if (!hasStrategyData) missingTasks.push('Task 3 (Strategy Selection)')
+
+      ElMessage.error(`Please complete ${missingTasks.join(' and ')} before proceeding.`)
       return
     }
 
@@ -1815,22 +1826,33 @@ const checkPhase1Completion = async () => {
 
     console.log('[Phase1] Checking Phase 1 completion for org:', orgId)
 
-    // Get organization data from dashboard endpoint (requires id parameter)
-    const orgResponse = await axios.get(`/api/organization/dashboard?id=${orgId}`)
-    const orgData = orgResponse.data.organization
+    // Check each task completion status
+    try {
+      // Check maturity assessment
+      const maturityResponse = await axios.get(`/api/phase1/maturity/${orgId}/latest`)
+      const hasMaturity = maturityResponse.data.exists && maturityResponse.data.data
 
-    if (orgData) {
-      // Phase 1 is complete if maturity_score and selected_archetype exist
-      const isComplete = orgData.maturity_score !== null && orgData.selected_archetype !== null
+      // Check roles identification
+      const rolesResponse = await axios.get(`/api/phase1/roles/${orgId}/latest`)
+      const hasRoles = rolesResponse.data.success && rolesResponse.data.count > 0
+
+      // Check strategies selection
+      const strategiesResponse = await axios.get(`/api/phase1/strategies/${orgId}/latest`)
+      const hasStrategies = strategiesResponse.data.success && strategiesResponse.data.count > 0
+
+      const isComplete = hasMaturity && hasRoles && hasStrategies
       console.log('[Phase1] Phase 1 completion check result:', {
-        maturity_score: orgData.maturity_score,
-        selected_archetype: orgData.selected_archetype,
+        hasMaturity,
+        hasRoles,
+        hasStrategies,
         isComplete
       })
-      return isComplete
-    }
 
-    return false
+      return isComplete
+    } catch (checkError) {
+      console.error('[Phase1] Error checking task completion:', checkError)
+      return false
+    }
   } catch (error) {
     console.error('[Phase1] Error checking Phase 1 completion:', error)
     return false
@@ -1891,6 +1913,22 @@ const loadOrganizationResults = async () => {
   }
 }
 
+// Watch currentStep to debug Review page display issues
+watch(currentStep, (newStep, oldStep) => {
+  console.log(`[PhaseOne] Step changed from ${oldStep} to ${newStep}`)
+
+  if (newStep === 4) {
+    // Landing on Review page
+    console.log('[PhaseOne] === REVIEW PAGE (Step 4) ===')
+    console.log('[PhaseOne] phase1RolesData.value:', phase1RolesData.value)
+    console.log('[PhaseOne] phase1RolesData.value?.roles:', phase1RolesData.value?.roles)
+    console.log('[PhaseOne] phase1RolesData.value?.count:', phase1RolesData.value?.count)
+    console.log('[PhaseOne] phase1TargetGroupData.value:', phase1TargetGroupData.value)
+    console.log('[PhaseOne] maturityResults.value:', maturityResults.value)
+    console.log('[PhaseOne] phase1StrategyData.value:', phase1StrategyData.value)
+  }
+})
+
 // Lifecycle
 onMounted(async () => {
   try {
@@ -1935,7 +1973,7 @@ onMounted(async () => {
         await loadLatestMaturityAssessment()
         await loadLatestTask2Data()
         await loadLatestTask3Data()
-        await loadLatestResponses()
+        // Note: loadLatestResponses is for old questionnaire system, not needed for Phase 1
 
         // Go directly to Review step
         console.log('[Phase1] Navigating to Review & Confirm (step 4)')
@@ -1950,8 +1988,8 @@ onMounted(async () => {
         // Load latest Task 3 data (strategies) if exists
         await loadLatestTask3Data()
         await loadMaturityQuestionnaire()
-        // Also load latest responses to populate data if user navigates directly here
-        await loadLatestResponses()
+        // Note: loadLatestResponses is for old questionnaire system, not needed for Phase 1
+        // Phase 1 data is loaded by the specific loaders above
         // After loading responses, determine the appropriate step
         await determineCurrentStep()
       }

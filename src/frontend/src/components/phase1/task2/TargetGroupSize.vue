@@ -126,7 +126,7 @@ const handleContinue = async () => {
     // Emit completion with size data
     emit('complete', {
       sizeData,
-      targetGroupId: response.data.id
+      targetGroupId: response.id
     })
   } catch (error) {
     console.error('[TargetGroupSize] Save failed:', error)

@@ -2,91 +2,93 @@
  * Standard SE Role Clusters (14 roles)
  * Based on SE4OWL research project
  * Used in Phase 1 Task 2: Identify SE Roles
+ *
+ * NOTE: Descriptions are brief summaries for UI display
  */
 
 export const SE_ROLE_CLUSTERS = [
   {
     id: 1,
     name: "Customer",
-    description: "Client for the development, has impact on system design",
+    description: "Party that orders or uses the service/product with influence on system design.",
     category: "Customer"
   },
   {
     id: 2,
     name: "Customer Representative",
-    description: "Interface between customer and company, voice for customer-relevant information",
+    description: "Interface between customer and company, voice for customer requirements.",
     category: "Customer"
   },
   {
     id: 3,
     name: "Project Manager",
-    description: "Planning and coordinating projects, monitoring resources and objectives",
+    description: "Responsible for project planning, coordination, and achieving goals within constraints.",
     category: "Management"
   },
   {
     id: 4,
     name: "System Engineer",
-    description: "Overview of requirements, system decomposition, integration and interfaces",
+    description: "Oversees requirements, system decomposition, interfaces, and integration planning.",
     category: "Development"
   },
   {
     id: 5,
     name: "Specialist Developer",
-    description: "Various specialist areas (software, hardware, etc.) developing based on system specifications",
+    description: "Develops in specific areas (software, hardware, etc.) based on system specifications.",
     category: "Development"
   },
   {
     id: 6,
     name: "Production Planner/Coordinator",
-    description: "Preparation of product realization and transfer to customer",
+    description: "Prepares product realization and transfer to customer.",
     category: "Production"
   },
   {
     id: 7,
     name: "Production Employee",
-    description: "Implementation, assembly, manufacture through to goods issue and shipping",
+    description: "Handles implementation, assembly, manufacture, and product integration.",
     category: "Production"
   },
   {
     id: 8,
     name: "Quality Engineer/Manager",
-    description: "Ensuring quality standards are maintained, cooperation with V&V",
+    description: "Ensures quality standards are maintained and cooperates with V&V.",
     category: "Quality"
   },
   {
     id: 9,
     name: "Verification and Validation (V&V) Operator",
-    description: "System verification and validation activities",
+    description: "Performs system verification and validation activities.",
     category: "Quality"
   },
   {
     id: 10,
     name: "Service Technician",
-    description: "Installation, commissioning, user training, maintenance and repair",
+    description: "Handles installation, commissioning, training, maintenance, and repair.",
     category: "Service"
   },
   {
     id: 11,
     name: "Process and Policy Manager",
-    description: "Developing internal guidelines for process flows and monitoring compliance",
+    description: "Develops internal guidelines and monitors process compliance.",
     category: "Management"
   },
   {
     id: 12,
     name: "Internal Support",
-    description: "Support during development (IT, qualification, SE support)",
+    description: "Provides advisory and support during development (IT, qualification, SE support).",
     category: "Support"
   },
   {
     id: 13,
     name: "Innovation Management",
-    description: "Commercial implementation of products/services, new business models",
+    description: "Focuses on commercial implementation of products/services and new business models.",
     category: "Management"
   },
   {
     id: 14,
     name: "Management",
-    description: "Company vision and goals, crucial for project progress",
+    description: "Decision-makers providing company vision, goals, and project oversight.",
     category: "Management"
   }
 ];

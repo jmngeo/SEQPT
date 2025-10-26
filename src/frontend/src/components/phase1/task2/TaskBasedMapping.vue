@@ -165,12 +165,16 @@
             <div style="font-size: 13px; color: #909399; margin-bottom: 12px;">
               {{ result.suggestedRole.description }}
             </div>
-            <el-tag
-              :type="getConfidenceType(result.confidence)"
-              size="default"
-            >
-              Confidence: {{ result.confidence }}%
-            </el-tag>
+
+            <!-- Show LLM reasoning if available -->
+            <div v-if="result.reasoning" style="background-color: #f0f9ff; padding: 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid #409eff;">
+              <div style="font-size: 12px; font-weight: 600; color: #409eff; margin-bottom: 4px;">
+                Why this role?
+              </div>
+              <div style="font-size: 13px; color: #606266; line-height: 1.6;">
+                {{ result.reasoning }}
+              </div>
+            </div>
           </div>
 
           <el-divider></el-divider>
@@ -351,24 +355,56 @@ const mapProfilesToRoles = async () => {
 
       console.log('[TaskBasedMapping] Process mapping result:', processResponse)
 
-      // Get role suggestion from backend using process matching
-      console.log('[TaskBasedMapping] Getting role suggestion for:', username)
-      const roleSuggestion = await rolesApi.suggestRoleFromProcesses(
+      // Check if LLM role suggestion is available (NEW: preferred method)
+      let primarySuggestion = null
+      let euclideanSuggestion = null
+
+      if (processResponse.llm_role_suggestion) {
+        console.log('[TaskBasedMapping] Using LLM role suggestion:', processResponse.llm_role_suggestion)
+
+        // Convert LLM suggestion to expected format
+        primarySuggestion = {
+          suggestedRole: {
+            id: processResponse.llm_role_suggestion.role_id,
+            name: processResponse.llm_role_suggestion.role_name,
+            description: '' // LLM doesn't provide description
+          },
+          confidence: processResponse.llm_role_suggestion.confidence === 'High' ? 95 :
+                      processResponse.llm_role_suggestion.confidence === 'Medium' ? 75 : 50,
+          reasoning: processResponse.llm_role_suggestion.reasoning,
+          method: 'LLM'
+        }
+      }
+
+      // Always get Euclidean distance suggestion as fallback/comparison
+      console.log('[TaskBasedMapping] Getting Euclidean distance suggestion for:', username)
+      euclideanSuggestion = await rolesApi.suggestRoleFromProcesses(
         username,
         authStore.organizationId
       )
+      euclideanSuggestion.method = 'Euclidean'
 
-      console.log('[TaskBasedMapping] Role suggestion:', roleSuggestion)
+      console.log('[TaskBasedMapping] Euclidean suggestion:', euclideanSuggestion)
+
+      // Use LLM suggestion if available, otherwise use Euclidean
+      const finalSuggestion = primarySuggestion || euclideanSuggestion
+
+      console.log('[TaskBasedMapping] Final suggestion:', finalSuggestion)
 
       results.push({
         jobTitle: profile.title,
         tasks: tasks,
         department: profile.department,
         processMapping: processResponse,
-        suggestedRole: roleSuggestion.suggestedRole,
-        selectedRoleId: roleSuggestion.suggestedRole.id,
+        suggestedRole: finalSuggestion.suggestedRole,
+        selectedRoleId: finalSuggestion.suggestedRole.id,
         orgRoleName: profile.title, // Default to job title
-        confidence: roleSuggestion.confidence
+        confidence: finalSuggestion.confidence,
+        reasoning: finalSuggestion.reasoning,
+        method: finalSuggestion.method,
+        // Store both for comparison/debugging
+        llmSuggestion: primarySuggestion,
+        euclideanSuggestion: euclideanSuggestion
       })
     }
 
@@ -413,6 +449,7 @@ const saveAndContinue = async () => {
       return {
         standardRoleId: result.selectedRoleId,
         standardRoleName: selectedRole.name,
+        standard_role_description: selectedRole.description,  // Include description
         orgRoleName: result.orgRoleName,
         jobDescription: result.jobTitle,
         mainTasks: result.tasks,
@@ -434,9 +471,10 @@ const saveAndContinue = async () => {
     console.log('[TaskBasedMapping] Saved:', response)
 
     // Emit completion
+    // IMPORTANT: response.roles contains the actual array, not response.data
     emit('complete', {
-      roles: response.data,
-      count: rolesToSave.length
+      roles: response.roles,
+      count: response.count
     })
   } catch (error) {
     console.error('[TaskBasedMapping] Save failed:', error)

@@ -244,7 +244,7 @@ const loadAllCompetencyIndicators = async () => {
     const indicatorPromises = props.competencies.map(async (comp) => {
       try {
         const response = await fetch(
-          `http://localhost:5003/get_competency_indicators_for_competency/${comp.competencyId}`
+          `http://localhost:5000/get_competency_indicators_for_competency/${comp.competencyId}`
         )
 
         if (!response.ok) {
