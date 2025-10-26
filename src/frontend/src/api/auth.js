@@ -3,7 +3,7 @@ import axios from './axios'
 export const authApi = {
   // Authentication endpoints - Using MVP auth system
   login: (credentials) => {
-    // MVP /mvp/auth/login endpoint: POST {username, password} -> {success: true/false, message: "..."}
+    // MVP /mvp/auth/login endpoint: POST {username, password} -> {access_token, user}
     return axios.post('/mvp/auth/login', {
       username: credentials.usernameOrEmail,
       password: credentials.password
@@ -31,9 +31,7 @@ export const authApi = {
 
   // Verify organization code
   verifyOrganizationCode: (code) => {
-    return axios.post('/verify-organization-code', {
-      organization_code: code
-    })
+    return axios.get(`/api/organization/verify-code/${code}`)
   },
 
   logout: () => {

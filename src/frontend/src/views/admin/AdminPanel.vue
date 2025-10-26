@@ -555,7 +555,7 @@
         <el-form-item label="Phase" prop="phase">
           <el-select v-model="editingQuestionnaire.phase" placeholder="Select phase">
             <el-option label="Phase 1 - Maturity Assessment" value="1"></el-option>
-            <el-option label="Phase 2 - Competency Assessment" value="2"></el-option>
+            <el-option label="Phase 2 - Identify requirements and competencies" value="2"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="Status" prop="status">

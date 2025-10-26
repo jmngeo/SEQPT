@@ -34,6 +34,19 @@
           </div>
         </el-card>
 
+        <el-card class="summary-card" v-if="selectedRoles.length > 0">
+          <div class="summary-item">
+            <div class="summary-icon">
+              <el-icon size="32" color="#e6a23c"><UserFilled /></el-icon>
+            </div>
+            <div class="summary-content">
+              <h3>Selected {{ selectedRoles.length > 1 ? 'Roles' : 'Role' }}</h3>
+              <p class="summary-value">{{ selectedRoles.length }}</p>
+              <p class="summary-desc role-names">{{ getRoleNames() }}</p>
+            </div>
+          </div>
+        </el-card>
+
         <el-card class="summary-card">
           <div class="summary-item">
             <div class="summary-icon">
@@ -42,20 +55,7 @@
             <div class="summary-content">
               <h3>Competencies Assessed</h3>
               <p class="summary-value">{{ competencyData.length }}</p>
-              <p class="summary-desc">Across {{ uniqueAreas.length }} areas</p>
-            </div>
-          </div>
-        </el-card>
-
-        <el-card class="summary-card" v-if="recommendedRole">
-          <div class="summary-item">
-            <div class="summary-icon">
-              <el-icon size="32" color="#e6a23c"><UserFilled /></el-icon>
-            </div>
-            <div class="summary-content">
-              <h3>Best Match Role</h3>
-              <p class="summary-value">{{ recommendedRole.name }}</p>
-              <p class="summary-desc">{{ Math.round(recommendedRole.matchScore * 100) }}% match</p>
+              <p class="summary-desc">Across {{ uniqueAreas.length}} areas</p>
             </div>
           </div>
         </el-card>
@@ -114,7 +114,7 @@
             <div class="area-header">
               <h4 class="area-title">{{ area.name }}</h4>
               <el-tag :type="getAreaScoreType(area.averageScore)" size="large">
-                {{ area.averageScore.toFixed(1) }}% Average
+                {{ area.averageScore.toFixed(1) }}% {{ selectedRoles.length > 0 ? 'of your SE role requirements in this area' : 'Average in this area' }}
               </el-tag>
             </div>
 
@@ -184,15 +184,15 @@
 
       <!-- Action Buttons -->
       <div class="actions">
-        <el-button @click="$emit('back')" size="large">
-          Previous
+        <el-button @click="retakeAssessment" size="large" type="warning">
+          Retake Competency Assessment
         </el-button>
         <el-button @click="exportResults" size="large" type="info">
           <el-icon><Download /></el-icon>
           Export Results
         </el-button>
-        <el-button type="primary" @click="proceedToNextStep" size="large">
-          Continue to Company Context
+        <el-button v-if="authStore.isAdmin" type="primary" @click="proceedToNextStep" size="large">
+          Generate Learning Objectives
         </el-button>
       </div>
     </div>
@@ -201,7 +201,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import {
@@ -222,6 +222,9 @@ import {
   LineElement,
   Filler
 } from 'chart.js'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import { useAuthStore } from '@/stores/auth'
 
 ChartJS.register(
   Title,
@@ -235,6 +238,8 @@ ChartJS.register(
 )
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
 // Props - Make assessmentData optional for persistent URL mode
 const props = defineProps({
@@ -253,7 +258,7 @@ const loading = ref(true)
 const selectedAreas = ref([])
 const competencyData = ref([])
 const maxScores = ref([])
-const recommendedRole = ref(null)
+const selectedRoles = ref([])  // Store selected roles for display
 
 // Chart data for radar visualization
 const chartData = ref(null)
@@ -370,7 +375,7 @@ const processAssessmentData = async () => {
   try {
     loading.value = true
 
-    let user_scores, max_scores, most_similar_role, feedback_list, selectedRoles, type
+    let user_scores, max_scores, feedback_list, apiSelectedRoles, type
 
     // Check if we have an assessment_id from route params (persistent URL mode)
     const assessmentId = route.params.id
@@ -379,53 +384,42 @@ const processAssessmentData = async () => {
       // Mode 1: Fetch by assessment_id from new API endpoint (persistent URL)
       console.log('Fetching results by assessment ID:', assessmentId)
 
-      const response = await axios.get(`http://localhost:5003/api/assessments/${assessmentId}/results`)
-
-      const data = response.data
-      user_scores = data.user_scores
-      max_scores = data.max_scores
-      feedback_list = data.feedback_list
-      most_similar_role = [] // Not returned by this endpoint yet
-      selectedRoles = [] // Not returned by this endpoint yet
-      type = data.assessment_type
-
-      console.log('Received from persistent URL API:', data)
-    } else if (props.assessmentData) {
-      // Mode 2: Fetch by username from old API (immediate results after submission)
-      const { surveyData, selectedRoles: propRoles, type: propType } = props.assessmentData
-      const username = surveyData?.username || 'test_user'
-
-      // Get organization_id from logged-in user
-      const userData = localStorage.getItem('user')
-      let organization_id = 1  // Fallback
-      if (userData) {
-        try {
-          const user = JSON.parse(userData)
-          organization_id = user.organization_id || 1
-        } catch (e) {
-          console.warn('Could not parse user data:', e)
-        }
-      }
-
-      console.log('Fetching results by username:', { username, organization_id, survey_type: propType })
-
-      const response = await axios.get('http://localhost:5003/get_user_competency_results', {
-        params: {
-          username: username,
-          organization_id: organization_id,
-          survey_type: propType || 'known_roles'
+      const response = await axios.get(`http://localhost:5000/assessment/${assessmentId}/results`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
 
       const data = response.data
       user_scores = data.user_scores
       max_scores = data.max_scores
-      most_similar_role = data.most_similar_role
       feedback_list = data.feedback_list
-      selectedRoles = propRoles
-      type = propType
+      apiSelectedRoles = data.assessment?.selected_roles || []
+      type = data.assessment?.assessment_type
 
-      console.log('Received from username API:', data)
+      console.log('Received from new authenticated API:', data)
+    } else if (props.assessmentData && props.assessmentData.assessment_id) {
+      // Mode 2: Fetch by assessment_id from new API (immediate results after submission)
+      const assessmentIdFromProps = props.assessmentData.assessment_id
+      const propRoles = props.assessmentData.selectedRoles || []
+      const propType = props.assessmentData.type
+
+      console.log('Fetching results by assessment ID from props:', assessmentIdFromProps)
+
+      const response = await axios.get(`http://localhost:5000/assessment/${assessmentIdFromProps}/results`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      const data = response.data
+      user_scores = data.user_scores
+      max_scores = data.max_scores
+      feedback_list = data.feedback_list
+      apiSelectedRoles = data.assessment?.selected_roles || propRoles || []
+      type = data.assessment?.assessment_type || propType
+
+      console.log('Received from new authenticated API (props mode):', data)
     } else {
       throw new Error('No assessment ID or assessment data provided')
     }
@@ -461,6 +455,9 @@ const processAssessmentData = async () => {
       }
       return mapping[dbLevel] ?? dbLevel
     }
+
+    // Store selected roles for display (using the apiSelectedRoles variable from API)
+    selectedRoles.value = apiSelectedRoles || []
 
     // Map backend data to component format
     competencyData.value = user_scores.map(score => {
@@ -561,19 +558,6 @@ const processAssessmentData = async () => {
       }
     })
 
-    // Use most similar role from backend or selected roles
-    if (most_similar_role && most_similar_role.length > 0) {
-      recommendedRole.value = {
-        name: most_similar_role[0].role_cluster_name,
-        matchScore: 0.85
-      }
-    } else if (selectedRoles && selectedRoles.length > 0) {
-      recommendedRole.value = {
-        name: selectedRoles[0].name,
-        matchScore: 0.85
-      }
-    }
-
     // Select all areas by default
     selectedAreas.value = [...uniqueAreas.value]
 
@@ -661,17 +645,256 @@ const getProgressColor = (percentage) => {
 }
 
 const getScoreDescription = (score) => {
-  if (score >= 100) return 'Exceeding role requirements'
-  if (score >= 90) return 'Meeting role requirements'
-  if (score >= 80) return 'Very close to role requirements'
-  if (score >= 70) return 'Good progress toward requirements'
-  if (score >= 60) return 'Moderate progress toward requirements'
-  if (score >= 50) return 'Some progress toward requirements'
-  return 'Significant development needed'
+  if (score >= 100) return 'Exceeding your SE role requirements'
+  if (score >= 90) return 'Meeting your SE role requirements'
+  if (score >= 80) return 'Very close to your SE role requirements'
+  if (score >= 70) return 'Good progress towards your SE role requirements'
+  if (score >= 60) return 'Moderate progress towards your SE role requirements'
+  if (score >= 50) return 'Some progress towards your SE role requirements'
+  return 'Significant development needed for your SE role requirements'
 }
 
-const exportResults = () => {
-  ElMessage.info('PDF export functionality coming soon!')
+const getRoleNames = () => {
+  if (!selectedRoles.value || selectedRoles.value.length === 0) return 'None selected'
+  return selectedRoles.value.map(role => role.name || role.role_name || 'Unknown Role').join(', ')
+}
+
+const exportResults = async () => {
+  try {
+    // Show loading message
+    const loadingMessage = ElMessage.info({
+      message: 'Generating PDF... Please wait.',
+      duration: 0
+    })
+
+    // Create PDF document (A4 size: 210mm x 297mm)
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    // PDF layout constants
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 20
+    const maxWidth = pageWidth - (2 * margin)
+    let currentY = margin
+
+    // Helper function to add new page if needed
+    const checkAddPage = (spaceNeeded) => {
+      if (currentY + spaceNeeded > pageHeight - margin) {
+        doc.addPage()
+        currentY = margin
+        return true
+      }
+      return false
+    }
+
+    // Helper function to wrap text
+    const wrapText = (text, maxWidth) => {
+      return doc.splitTextToSize(text, maxWidth)
+    }
+
+    // 1. Add Title
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text('SE Competency Assessment Results', pageWidth / 2, currentY, { align: 'center' })
+    currentY += 12
+
+    // 2. Add Date and Overall Score
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+    doc.text(`Assessment Date: ${currentDate}`, margin, currentY)
+    currentY += 7
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Overall Score: ${overallScore.value.toFixed(1)}%`, margin, currentY)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`(${getScoreDescription(overallScore.value)})`, margin + 45, currentY)
+    currentY += 10
+
+    // 3. Capture and add radar chart
+    const chartElement = document.querySelector('.radar-chart canvas')
+    if (chartElement && filteredCompetencyData.value.length > 0) {
+      try {
+        const canvas = await html2canvas(chartElement, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          logging: false
+        })
+
+        const imgData = canvas.toDataURL('image/png')
+        const imgWidth = maxWidth * 0.8
+        const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+        checkAddPage(imgHeight + 15)
+
+        doc.setFontSize(14)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Competency Overview', margin, currentY)
+        currentY += 8
+
+        const imgX = (pageWidth - imgWidth) / 2
+        doc.addImage(imgData, 'PNG', imgX, currentY, imgWidth, imgHeight)
+        currentY += imgHeight + 10
+      } catch (error) {
+        console.warn('Could not capture radar chart:', error)
+      }
+    }
+
+    // 4. Add detailed competency breakdown by area
+    checkAddPage(20)
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Detailed Competency Analysis', margin, currentY)
+    currentY += 10
+
+    // Group competencies by area and process each
+    for (const area of filteredAreas.value) {
+      checkAddPage(30)
+
+      // Area header
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(41, 98, 255) // Blue color
+      doc.text(area.name, margin, currentY)
+      doc.setTextColor(0, 0, 0) // Reset to black
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'italic')
+      doc.text(`Average: ${area.averageScore.toFixed(1)}%`, margin + 80, currentY)
+      currentY += 8
+
+      // Draw separator line
+      doc.setDrawColor(200, 200, 200)
+      doc.line(margin, currentY, pageWidth - margin, currentY)
+      currentY += 5
+
+      // Process each competency in this area
+      for (const competency of area.competencies) {
+        checkAddPage(35)
+
+        // Competency name
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.text(competency.name, margin + 5, currentY)
+        currentY += 6
+
+        // Levels info
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Your Level: ${competency.scoreText}`, margin + 10, currentY)
+        doc.text(`Required: ${competency.requiredText}`, margin + 70, currentY)
+
+        // Status with color
+        const statusText = competency.status === 'exceeded' ? 'Exceeded' :
+                          (competency.status === 'met' ? 'Met' : 'Below Target')
+        const statusColor = competency.status === 'exceeded' || competency.status === 'met' ?
+                           [103, 194, 58] : [230, 162, 60] // Green or Orange
+        doc.setTextColor(...statusColor)
+        doc.text(`Status: ${statusText}`, margin + 120, currentY)
+        doc.setTextColor(0, 0, 0)
+        currentY += 6
+
+        // Progress bar
+        const barWidth = 60
+        const barHeight = 3
+        const progressWidth = (Math.min(competency.percentage, 100) / 100) * barWidth
+
+        // Background bar
+        doc.setFillColor(240, 240, 240)
+        doc.rect(margin + 10, currentY, barWidth, barHeight, 'F')
+
+        // Progress bar
+        const progressColor = competency.percentage >= 100 ? [103, 194, 58] :
+                             competency.percentage >= 75 ? [64, 158, 255] :
+                             competency.percentage >= 50 ? [230, 162, 60] : [245, 108, 108]
+        doc.setFillColor(...progressColor)
+        doc.rect(margin + 10, currentY, progressWidth, barHeight, 'F')
+
+        doc.setFontSize(8)
+        doc.text(`${competency.percentage}%`, margin + 75, currentY + 2.5)
+        currentY += 7
+
+        // Feedback sections
+        if (competency.strengths) {
+          checkAddPage(20)
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          doc.text('Strengths:', margin + 10, currentY)
+          currentY += 4
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          const strengthLines = wrapText(competency.strengths, maxWidth - 15)
+          strengthLines.forEach(line => {
+            checkAddPage(5)
+            doc.text(line, margin + 12, currentY)
+            currentY += 4
+          })
+          currentY += 2
+        }
+
+        if (competency.improvements) {
+          checkAddPage(20)
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'bold')
+          const improvementLabel = competency.status === 'below' ?
+                                  'Areas for Improvement:' : 'Status:'
+          doc.text(improvementLabel, margin + 10, currentY)
+          currentY += 4
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          const improvementLines = wrapText(competency.improvements, maxWidth - 15)
+          improvementLines.forEach(line => {
+            checkAddPage(5)
+            doc.text(line, margin + 12, currentY)
+            currentY += 4
+          })
+          currentY += 2
+        }
+
+        currentY += 5 // Spacing between competencies
+      }
+
+      currentY += 5 // Spacing between areas
+    }
+
+    // Add footer with generation info
+    const totalPages = doc.internal.pages.length - 1
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setTextColor(150, 150, 150)
+      doc.text(
+        `Generated by SE-QPT | Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      )
+    }
+
+    // Save the PDF
+    const timestamp = new Date().getTime()
+    const filename = `SE_Competency_Assessment_${timestamp}.pdf`
+    doc.save(filename)
+
+    // Close loading message and show success
+    loadingMessage.close()
+    ElMessage.success('PDF exported successfully!')
+
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    ElMessage.error('Failed to generate PDF. Please try again.')
+  }
 }
 
 const proceedToNextStep = () => {
@@ -681,6 +904,13 @@ const proceedToNextStep = () => {
     recommendedRole: recommendedRole.value,
     selectedAreas: selectedAreas.value
   })
+}
+
+const retakeAssessment = () => {
+  // Navigate back to Phase 2 landing page with fresh=true query parameter
+  // This tells Phase 2 to skip the auto-redirect and start a new assessment
+  router.push('/app/phases/2?fresh=true')
+  ElMessage.info('Starting new competency assessment...')
 }
 
 // Lifecycle
@@ -772,6 +1002,15 @@ onMounted(() => {
   color: #6c7b7f;
   margin: 4px 0 0 0;
   font-size: 0.9rem;
+}
+
+.role-names {
+  color: #606266;
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chart-section {

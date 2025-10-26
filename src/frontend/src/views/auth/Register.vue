@@ -74,7 +74,7 @@
               <el-button
                 type="primary"
                 size="large"
-                @click="handleAdminRegister"
+                native-type="submit"
                 :loading="loading"
                 style="width: 100%"
               >
@@ -160,7 +160,7 @@
               <el-button
                 type="primary"
                 size="large"
-                @click="handleEmployeeRegister"
+                native-type="submit"
                 :loading="loading"
                 :disabled="!orgCodeValid"
                 style="width: 100%"

@@ -4,7 +4,7 @@ import { toast } from 'vue3-toastify'
 // Create axios instance
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
-  timeout: 30000,
+  timeout: 120000, // 2 minutes - increased for LLM processing of multiple profiles
   headers: {
     'Content-Type': 'application/json'
   }

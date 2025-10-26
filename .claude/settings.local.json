@@ -1,12 +1,28 @@
 {
   "permissions": {
     "allow": [
-      "Bash(tasklist)",
-      "Bash(findstr python.exe)",
-      "Bash(set DATABASE_URL=postgresql://ma0349:MA0349_2025@localhost:5432/competency_assessment)",
-      "Bash(../../venv/Scripts/python.exe run.py --port 5000 --debug)",
-      "Bash(git commit -m \"Fix foreign key table references in models.py\n\nChanged all ForeignKey references from ''se_competencies.id'' to ''competency.id'' \nto match actual table name from unified_models:\n- CompetencyAssessmentResult.competency_id (line 155)\n- LearningObjective.competency_id (line 210)\n- LearningModule.competency_id (line 434)\n\nThis resolves SQLAlchemy join condition errors.\")",
-      "Bash(curl -X POST http://localhost:5000/mvp/auth/login -H \"Content-Type: application/json\" -d \"{\"\"username\"\":\"\"test\"\",\"\"password\"\":\"\"test\"\"}\" -w \"\\nHTTP Status: %{http_code}\\n\")"
+      "Read(//c/Users/jomon/.claude/**)",
+      "Bash(PGPASSWORD=root psql:*)",
+      "Bash(findstr:*)",
+      "Bash(PGPASSWORD=SeQpt_2025 psql:*)",
+      "Read(//c/Users/jomon/Documents/MyDocuments/Development/Thesis/**)",
+      "Read(//c/Users/jomon/Desktop/temp/sesurveyapp-main/app/**)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(git mv:*)",
+      "Bash(python:*)",
+      "Bash(timeout 15 ../../venv/Scripts/python.exe:*)",
+      "Bash(../../venv/Scripts/python.exe:*)",
+      "Read(//c/Users/jomon/Documents/MyDocuments/Development/data/rag_vectordb/**)",
+      "Bash(test:*)",
+      "Bash(awk:*)",
+      "Bash(tree:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git ls-tree:*)"
     ],
     "deny": [],
     "ask": []

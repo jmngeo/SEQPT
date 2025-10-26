@@ -29,7 +29,7 @@ except ImportError as e:
     create_pipeline = None
 
 from models import db
-from models import User, Assessment, CompetencyAssessmentResult, SECompetency, SERole
+from models import User, SECompetency, SERole
 
 derik_bp = Blueprint('derik', __name__)
 
@@ -154,346 +154,353 @@ def identify_processes_public():
         print(f"Error in public identify_processes: {str(e)}")
         return {'error': f'Process identification failed: {str(e)}'}, 500
 
-@derik_bp.route('/identify-processes', methods=['POST'])
-@jwt_required()
-def identify_processes():
-    """Identify ISO/IEC 15288 processes from job description"""
-    try:
-        data = request.get_json()
-        job_description = data.get('job_description', '')
 
-        if not job_description:
-            return {'error': 'Job description is required'}, 400
+# =============================================================================
+# OPTIONAL CLEANUP: Broken authenticated routes commented out
+# These routes use removed models (Assessment, CompetencyAssessmentResult, etc.)
+# Use main_bp routes instead for assessment functionality
+# =============================================================================
 
-        if DERIK_AVAILABLE:
+# @derik_bp.route('/identify-processes', methods=['POST'])
+# @jwt_required()
+# def identify_processes():
+#     """Identify ISO/IEC 15288 processes from job description"""
+#     try:
+#         data = request.get_json()
+#         job_description = data.get('job_description', '')
+# 
+#         if not job_description:
+#             return {'error': 'Job description is required'}, 400
+# 
+#         if DERIK_AVAILABLE:
             # Use Derik's LLM pipeline if available
-            pipeline = LLMProcessIdentificationPipeline()
-            result = pipeline.process_job_description(job_description)
-            return {
-                'identified_processes': result.get('processes', []),
-                'confidence_scores': result.get('confidence_scores', {}),
-                'reasoning': result.get('reasoning', ''),
-                'raw_response': result.get('raw_response', '')
-            }
-        else:
+#             pipeline = LLMProcessIdentificationPipeline()
+#             result = pipeline.process_job_description(job_description)
+#             return {
+#                 'identified_processes': result.get('processes', []),
+#                 'confidence_scores': result.get('confidence_scores', {}),
+#                 'reasoning': result.get('reasoning', ''),
+#                 'raw_response': result.get('raw_response', '')
+#             }
+#         else:
             # Fallback: Simple keyword matching for demo purposes
-            processes = []
-            job_lower = job_description.lower()
-
+#             processes = []
+#             job_lower = job_description.lower()
+# 
             # Map keywords to ISO 15288 processes
-            process_keywords = {
-                'System Architecture Definition': ['architecture', 'design', 'structure', 'component', 'interface'],
-                'Requirements Definition': ['requirement', 'spec', 'need', 'constraint', 'criteria'],
-                'Implementation': ['implement', 'code', 'develop', 'build', 'create'],
-                'Integration': ['integrate', 'combine', 'merge', 'connect', 'interface'],
-                'Verification': ['verify', 'test', 'validate', 'check', 'confirm'],
-                'Transition': ['deploy', 'release', 'transition', 'deliver', 'install'],
-                'Validation': ['validate', 'acceptance', 'user', 'customer', 'end-to-end'],
-                'Operation': ['operate', 'maintain', 'monitor', 'manage', 'support'],
-                'Maintenance': ['maintain', 'fix', 'update', 'patch', 'service'],
-                'Disposal': ['dispose', 'retire', 'decommission', 'remove', 'shutdown']
-            }
-
-            for process_name, keywords in process_keywords.items():
-                if any(keyword in job_lower for keyword in keywords):
-                    processes.append(process_name)
-
+#             process_keywords = {
+#                 'System Architecture Definition': ['architecture', 'design', 'structure', 'component', 'interface'],
+#                 'Requirements Definition': ['requirement', 'spec', 'need', 'constraint', 'criteria'],
+#                 'Implementation': ['implement', 'code', 'develop', 'build', 'create'],
+#                 'Integration': ['integrate', 'combine', 'merge', 'connect', 'interface'],
+#                 'Verification': ['verify', 'test', 'validate', 'check', 'confirm'],
+#                 'Transition': ['deploy', 'release', 'transition', 'deliver', 'install'],
+#                 'Validation': ['validate', 'acceptance', 'user', 'customer', 'end-to-end'],
+#                 'Operation': ['operate', 'maintain', 'monitor', 'manage', 'support'],
+#                 'Maintenance': ['maintain', 'fix', 'update', 'patch', 'service'],
+#                 'Disposal': ['dispose', 'retire', 'decommission', 'remove', 'shutdown']
+#             }
+# 
+#             for process_name, keywords in process_keywords.items():
+#                 if any(keyword in job_lower for keyword in keywords):
+#                     processes.append(process_name)
+# 
             # Default processes if none found
-            if not processes:
-                processes = ['System Architecture Definition', 'Requirements Definition', 'Implementation']
-
-            return {
-                'identified_processes': processes,
-                'confidence_scores': {process: 0.75 for process in processes},
-                'reasoning': 'Fallback keyword-based process identification (Derik\'s LLM components not available)',
-                'raw_response': f'Analyzed job description with fallback method. Found {len(processes)} relevant processes.'
-            }
-
-    except Exception as e:
-        current_app.logger.error(f"Process identification error: {str(e)}")
-        return {'error': 'Process identification failed'}, 500
-
-@derik_bp.route('/rank-competencies', methods=['POST'])
-@jwt_required()
-def rank_competencies():
-    """Rank competency indicators for a role"""
-    if not DERIK_AVAILABLE:
-        return {'error': 'Derik\'s assessment components not available'}, 503
-
-    try:
-        data = request.get_json()
-        role_name = data.get('role_name', '')
-        competency_name = data.get('competency_name', '')
-
-        if not role_name or not competency_name:
-            return {'error': 'Role name and competency name are required'}, 400
-
+#             if not processes:
+#                 processes = ['System Architecture Definition', 'Requirements Definition', 'Implementation']
+# 
+#             return {
+#                 'identified_processes': processes,
+#                 'confidence_scores': {process: 0.75 for process in processes},
+#                 'reasoning': 'Fallback keyword-based process identification (Derik\'s LLM components not available)',
+#                 'raw_response': f'Analyzed job description with fallback method. Found {len(processes)} relevant processes.'
+#             }
+# 
+#     except Exception as e:
+#         current_app.logger.error(f"Process identification error: {str(e)}")
+#         return {'error': 'Process identification failed'}, 500
+# 
+# @derik_bp.route('/rank-competencies', methods=['POST'])
+# @jwt_required()
+# def rank_competencies():
+#     """Rank competency indicators for a role"""
+#     if not DERIK_AVAILABLE:
+#         return {'error': 'Derik\'s assessment components not available'}, 503
+# 
+#     try:
+#         data = request.get_json()
+#         role_name = data.get('role_name', '')
+#         competency_name = data.get('competency_name', '')
+# 
+#         if not role_name or not competency_name:
+#             return {'error': 'Role name and competency name are required'}, 400
+# 
         # Initialize ranker
-        ranker = RankCompetencyIndicators()
-
+#         ranker = RankCompetencyIndicators()
+# 
         # Get competency indicators ranking
-        result = ranker.rank_indicators(role_name, competency_name)
-
-        return {
-            'role_name': role_name,
-            'competency_name': competency_name,
-            'ranked_indicators': result.get('indicators', []),
-            'relevance_scores': result.get('scores', {}),
-            'reasoning': result.get('reasoning', '')
-        }
-
-    except Exception as e:
-        current_app.logger.error(f"Competency ranking error: {str(e)}")
-        return {'error': 'Competency ranking failed'}, 500
-
-@derik_bp.route('/find-similar-role', methods=['POST'])
-@jwt_required()
-def find_similar_role():
-    """Find most similar role based on job description"""
-    if not DERIK_AVAILABLE:
-        return {'error': 'Derik\'s assessment components not available'}, 503
-
-    try:
-        data = request.get_json()
-        job_description = data.get('job_description', '')
-
-        if not job_description:
-            return {'error': 'Job description is required'}, 400
-
+#         result = ranker.rank_indicators(role_name, competency_name)
+# 
+#         return {
+#             'role_name': role_name,
+#             'competency_name': competency_name,
+#             'ranked_indicators': result.get('indicators', []),
+#             'relevance_scores': result.get('scores', {}),
+#             'reasoning': result.get('reasoning', '')
+#         }
+# 
+#     except Exception as e:
+#         current_app.logger.error(f"Competency ranking error: {str(e)}")
+#         return {'error': 'Competency ranking failed'}, 500
+# 
+# @derik_bp.route('/find-similar-role', methods=['POST'])
+# @jwt_required()
+# def find_similar_role():
+#     """Find most similar role based on job description"""
+#     if not DERIK_AVAILABLE:
+#         return {'error': 'Derik\'s assessment components not available'}, 503
+# 
+#     try:
+#         data = request.get_json()
+#         job_description = data.get('job_description', '')
+# 
+#         if not job_description:
+#             return {'error': 'Job description is required'}, 400
+# 
         # Initialize role finder
-        role_finder = FindMostSimilarRole()
-
+#         role_finder = FindMostSimilarRole()
+# 
         # Find similar role
-        result = role_finder.find_role(job_description)
-
-        return {
-            'most_similar_role': result.get('role_name', ''),
-            'similarity_score': result.get('similarity_score', 0.0),
-            'reasoning': result.get('reasoning', ''),
-            'alternative_roles': result.get('alternatives', [])
-        }
-
-    except Exception as e:
-        current_app.logger.error(f"Role similarity error: {str(e)}")
-        return {'error': 'Role similarity analysis failed'}, 500
-
-@derik_bp.route('/complete-assessment', methods=['POST'])
-@jwt_required()
-def complete_assessment():
-    """Complete competency assessment using Derik's system"""
-    if not DERIK_AVAILABLE:
-        return {'error': 'Derik\'s assessment components not available'}, 503
-
-    try:
-        user_id = get_jwt_identity()
-        data = request.get_json()
-
-        assessment_id = data.get('assessment_id')
-        job_description = data.get('job_description', '')
-        responses = data.get('responses', {})
-
-        if not assessment_id or not job_description:
-            return {'error': 'Assessment ID and job description are required'}, 400
-
+#         result = role_finder.find_role(job_description)
+# 
+#         return {
+#             'most_similar_role': result.get('role_name', ''),
+#             'similarity_score': result.get('similarity_score', 0.0),
+#             'reasoning': result.get('reasoning', ''),
+#             'alternative_roles': result.get('alternatives', [])
+#         }
+# 
+#     except Exception as e:
+#         current_app.logger.error(f"Role similarity error: {str(e)}")
+#         return {'error': 'Role similarity analysis failed'}, 500
+# 
+# @derik_bp.route('/complete-assessment', methods=['POST'])
+# @jwt_required()
+# def complete_assessment():
+#     """Complete competency assessment using Derik's system"""
+#     if not DERIK_AVAILABLE:
+#         return {'error': 'Derik\'s assessment components not available'}, 503
+# 
+#     try:
+#         user_id = get_jwt_identity()
+#         data = request.get_json()
+# 
+#         assessment_id = data.get('assessment_id')
+#         job_description = data.get('job_description', '')
+#         responses = data.get('responses', {})
+# 
+#         if not assessment_id or not job_description:
+#             return {'error': 'Assessment ID and job description are required'}, 400
+# 
         # Get assessment
-        assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
-        if not assessment:
-            return {'error': 'Assessment not found'}, 404
-
+#         assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
+#         if not assessment:
+#             return {'error': 'Assessment not found'}, 404
+# 
         # Step 1: Identify processes
-        pipeline = LLMProcessIdentificationPipeline()
-        process_result = pipeline.process_job_description(job_description)
-
+#         pipeline = LLMProcessIdentificationPipeline()
+#         process_result = pipeline.process_job_description(job_description)
+# 
         # Step 2: Find similar role
-        role_finder = FindMostSimilarRole()
-        role_result = role_finder.find_role(job_description)
-
+#         role_finder = FindMostSimilarRole()
+#         role_result = role_finder.find_role(job_description)
+# 
         # Step 3: Get competencies for the identified role
-        similar_role = SERole.query.filter_by(name=role_result.get('role_name')).first()
-        competencies = []
-
-        if similar_role:
-            from sqlalchemy import and_
-            from models import RoleCompetencyMatrix
-
-            role_competencies = db.session.query(
-                RoleCompetencyMatrix, SECompetency
-            ).join(SECompetency).filter(
-                RoleCompetencyMatrix.role_id == similar_role.id
-            ).all()
-
-            competencies = [rc[1] for rc in role_competencies]
-
+#         similar_role = SERole.query.filter_by(name=role_result.get('role_name')).first()
+#         competencies = []
+# 
+#         if similar_role:
+#             from sqlalchemy import and_
+#             from models import RoleCompetencyMatrix
+# 
+#             role_competencies = db.session.query(
+#                 RoleCompetencyMatrix, SECompetency
+#             ).join(SECompetency).filter(
+#                 RoleCompetencyMatrix.role_id == similar_role.id
+#             ).all()
+# 
+#             competencies = [rc[1] for rc in role_competencies]
+# 
         # Step 4: Rank competency indicators
-        ranker = RankCompetencyIndicators()
-        competency_rankings = {}
-
-        for competency in competencies:
-            ranking_result = ranker.rank_indicators(
-                role_result.get('role_name', ''),
-                competency.name
-            )
-            competency_rankings[competency.name] = ranking_result
-
+#         ranker = RankCompetencyIndicators()
+#         competency_rankings = {}
+# 
+#         for competency in competencies:
+#             ranking_result = ranker.rank_indicators(
+#                 role_result.get('role_name', ''),
+#                 competency.name
+#             )
+#             competency_rankings[competency.name] = ranking_result
+# 
         # Step 5: Calculate competency scores based on responses
-        competency_scores = {}
-        for competency_name, ranking in competency_rankings.items():
-            if competency_name in responses:
-                user_responses = responses[competency_name]
-                indicators = ranking.get('indicators', [])
-                scores = ranking.get('scores', {})
-
+#         competency_scores = {}
+#         for competency_name, ranking in competency_rankings.items():
+#             if competency_name in responses:
+#                 user_responses = responses[competency_name]
+#                 indicators = ranking.get('indicators', [])
+#                 scores = ranking.get('scores', {})
+# 
                 # Calculate weighted score
-                total_score = 0
-                total_weight = 0
-
-                for indicator, response_value in user_responses.items():
-                    weight = scores.get(indicator, 0.5)
-                    total_score += response_value * weight
-                    total_weight += weight
-
-                final_score = total_score / total_weight if total_weight > 0 else 0
-                competency_scores[competency_name] = final_score
-
+#                 total_score = 0
+#                 total_weight = 0
+# 
+#                 for indicator, response_value in user_responses.items():
+#                     weight = scores.get(indicator, 0.5)
+#                     total_score += response_value * weight
+#                     total_weight += weight
+# 
+#                 final_score = total_score / total_weight if total_weight > 0 else 0
+#                 competency_scores[competency_name] = final_score
+# 
         # Store results
-        for competency_name, score in competency_scores.items():
-            competency = SECompetency.query.filter_by(name=competency_name).first()
-            if competency:
-                result = CompetencyAssessmentResult(
-                    assessment_id=assessment.id,
-                    competency_id=competency.id,
-                    current_level=score,
-                    required_level=4.0,  # Default requirement
-                    gap_score=max(0, 4.0 - score),
-                    priority_ranking=1,
-                    development_recommendations=f"Focus on improving {competency_name} skills"
-                )
-                db.session.add(result)
-
+#         for competency_name, score in competency_scores.items():
+#             competency = SECompetency.query.filter_by(name=competency_name).first()
+#             if competency:
+#                 result = CompetencyAssessmentResult(
+#                     assessment_id=assessment.id,
+#                     competency_id=competency.id,
+#                     current_level=score,
+#                     required_level=4.0,  # Default requirement
+#                     gap_score=max(0, 4.0 - score),
+#                     priority_ranking=1,
+#                     development_recommendations=f"Focus on improving {competency_name} skills"
+#                 )
+#                 db.session.add(result)
+# 
         # Update assessment
-        assessment.status = 'completed'
-        assessment.progress_percentage = 100
-        assessment.competency_scores = competency_scores
-        assessment.completed_at = datetime.utcnow()
-        assessment.results = {
-            'identified_processes': process_result.get('processes', []),
-            'similar_role': role_result.get('role_name', ''),
-            'similarity_score': role_result.get('similarity_score', 0.0),
-            'competency_rankings': competency_rankings
-        }
-
-        db.session.commit()
-
-        return {
-            'message': 'Assessment completed successfully',
-            'assessment_id': assessment.id,
-            'results': {
-                'identified_processes': process_result.get('processes', []),
-                'similar_role': role_result.get('role_name', ''),
-                'competency_scores': competency_scores,
-                'total_competencies_assessed': len(competency_scores)
-            }
-        }
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Complete assessment error: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
-        return {'error': 'Assessment completion failed'}, 500
-
-@derik_bp.route('/questionnaire/<competency_name>', methods=['GET'])
-@jwt_required()
-def get_competency_questionnaire(competency_name):
-    """Get questionnaire for specific competency"""
-    try:
-        competency = SECompetency.query.filter_by(name=competency_name, is_active=True).first()
-        if not competency:
-            return {'error': 'Competency not found'}, 404
-
+#         assessment.status = 'completed'
+#         assessment.progress_percentage = 100
+#         assessment.competency_scores = competency_scores
+#         assessment.completed_at = datetime.utcnow()
+#         assessment.results = {
+#             'identified_processes': process_result.get('processes', []),
+#             'similar_role': role_result.get('role_name', ''),
+#             'similarity_score': role_result.get('similarity_score', 0.0),
+#             'competency_rankings': competency_rankings
+#         }
+# 
+#         db.session.commit()
+# 
+#         return {
+#             'message': 'Assessment completed successfully',
+#             'assessment_id': assessment.id,
+#             'results': {
+#                 'identified_processes': process_result.get('processes', []),
+#                 'similar_role': role_result.get('role_name', ''),
+#                 'competency_scores': competency_scores,
+#                 'total_competencies_assessed': len(competency_scores)
+#             }
+#         }
+# 
+#     except Exception as e:
+#         db.session.rollback()
+#         current_app.logger.error(f"Complete assessment error: {str(e)}")
+#         current_app.logger.error(traceback.format_exc())
+#         return {'error': 'Assessment completion failed'}, 500
+# 
+# @derik_bp.route('/questionnaire/<competency_name>', methods=['GET'])
+# @jwt_required()
+# def get_competency_questionnaire(competency_name):
+#     """Get questionnaire for specific competency"""
+#     try:
+#         competency = SECompetency.query.filter_by(name=competency_name, is_active=True).first()
+#         if not competency:
+#             return {'error': 'Competency not found'}, 404
+# 
         # Generate questionnaire based on assessment indicators
-        indicators = competency.assessment_indicators or []
-
-        questionnaire = {
-            'competency_name': competency.name,
-            'competency_description': competency.description,
-            'questions': []
-        }
-
-        for i, indicator in enumerate(indicators):
-            question = {
-                'id': f"{competency.name}_{i+1}",
-                'indicator': indicator,
-                'question': f"Rate your current ability in: {indicator}",
-                'scale': {
-                    'min': 1,
-                    'max': 5,
-                    'labels': {
-                        '1': 'Beginner',
-                        '2': 'Basic',
-                        '3': 'Intermediate',
-                        '4': 'Advanced',
-                        '5': 'Expert'
-                    }
-                }
-            }
-            questionnaire['questions'].append(question)
-
-        return questionnaire
-
-    except Exception as e:
-        current_app.logger.error(f"Questionnaire generation error: {str(e)}")
-        return {'error': 'Failed to generate questionnaire'}, 500
-
-@derik_bp.route('/assessment-report/<int:assessment_id>', methods=['GET'])
-@jwt_required()
-def get_assessment_report(assessment_id):
-    """Generate comprehensive assessment report"""
-    try:
-        user_id = get_jwt_identity()
-        assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
-
-        if not assessment:
-            return {'error': 'Assessment not found'}, 404
-
+#         indicators = competency.assessment_indicators or []
+# 
+#         questionnaire = {
+#             'competency_name': competency.name,
+#             'competency_description': competency.description,
+#             'questions': []
+#         }
+# 
+#         for i, indicator in enumerate(indicators):
+#             question = {
+#                 'id': f"{competency.name}_{i+1}",
+#                 'indicator': indicator,
+#                 'question': f"Rate your current ability in: {indicator}",
+#                 'scale': {
+#                     'min': 1,
+#                     'max': 5,
+#                     'labels': {
+#                         '1': 'Beginner',
+#                         '2': 'Basic',
+#                         '3': 'Intermediate',
+#                         '4': 'Advanced',
+#                         '5': 'Expert'
+#                     }
+#                 }
+#             }
+#             questionnaire['questions'].append(question)
+# 
+#         return questionnaire
+# 
+#     except Exception as e:
+#         current_app.logger.error(f"Questionnaire generation error: {str(e)}")
+#         return {'error': 'Failed to generate questionnaire'}, 500
+# 
+# @derik_bp.route('/assessment-report/<int:assessment_id>', methods=['GET'])
+# @jwt_required()
+# def get_assessment_report(assessment_id):
+#     """Generate comprehensive assessment report"""
+#     try:
+#         user_id = get_jwt_identity()
+#         assessment = Assessment.query.filter_by(id=assessment_id, user_id=user_id).first()
+# 
+#         if not assessment:
+#             return {'error': 'Assessment not found'}, 404
+# 
         # Get competency results
-        results = CompetencyAssessmentResult.query.filter_by(assessment_id=assessment_id).all()
-
-        report = {
-            'assessment': {
-                'id': assessment.id,
-                'uuid': assessment.uuid,
-                'type': assessment.assessment_type,
-                'status': assessment.status,
-                'completed_at': assessment.completed_at.isoformat() if assessment.completed_at else None
-            },
-            'summary': {
-                'total_competencies': len(results),
-                'average_current_level': sum(r.current_level for r in results) / len(results) if results else 0,
-                'competencies_above_threshold': len([r for r in results if r.current_level >= r.required_level]),
-                'total_gap_score': sum(r.gap_score for r in results)
-            },
-            'competency_breakdown': [],
-            'recommendations': assessment.recommendations or [],
-            'derik_analysis': assessment.results or {}
-        }
-
-        for result in results:
-            competency = SECompetency.query.get(result.competency_id)
-            report['competency_breakdown'].append({
-                'competency_name': competency.name if competency else 'Unknown',
-                'current_level': result.current_level,
-                'required_level': result.required_level,
-                'gap_score': result.gap_score,
-                'priority': result.priority_ranking,
-                'recommendations': result.development_recommendations
-            })
-
-        return report
-
-    except Exception as e:
-        current_app.logger.error(f"Assessment report error: {str(e)}")
-        return {'error': 'Failed to generate assessment report'}, 500
-
+#         results = CompetencyAssessmentResult.query.filter_by(assessment_id=assessment_id).all()
+# 
+#         report = {
+#             'assessment': {
+#                 'id': assessment.id,
+#                 'uuid': assessment.uuid,
+#                 'type': assessment.assessment_type,
+#                 'status': assessment.status,
+#                 'completed_at': assessment.completed_at.isoformat() if assessment.completed_at else None
+#             },
+#             'summary': {
+#                 'total_competencies': len(results),
+#                 'average_current_level': sum(r.current_level for r in results) / len(results) if results else 0,
+#                 'competencies_above_threshold': len([r for r in results if r.current_level >= r.required_level]),
+#                 'total_gap_score': sum(r.gap_score for r in results)
+#             },
+#             'competency_breakdown': [],
+#             'recommendations': assessment.recommendations or [],
+#             'derik_analysis': assessment.results or {}
+#         }
+# 
+#         for result in results:
+#             competency = SECompetency.query.get(result.competency_id)
+#             report['competency_breakdown'].append({
+#                 'competency_name': competency.name if competency else 'Unknown',
+#                 'current_level': result.current_level,
+#                 'required_level': result.required_level,
+#                 'gap_score': result.gap_score,
+#                 'priority': result.priority_ranking,
+#                 'recommendations': result.development_recommendations
+#             })
+# 
+#         return report
+# 
+#     except Exception as e:
+#         current_app.logger.error(f"Assessment report error: {str(e)}")
+#         return {'error': 'Failed to generate assessment report'}, 500
+# 
 # Bridge endpoints to Derik's standalone competency assessor on port 5001
 @derik_bp.route('/get_required_competencies_for_roles', methods=['POST'])
 def bridge_get_required_competencies():

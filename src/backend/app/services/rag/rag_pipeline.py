@@ -9,6 +9,7 @@ import json
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
+from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -25,6 +26,9 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Get project root directory (SE-QPT-Master-Thesis/)
+PROJECT_ROOT = Path(__file__).resolve().parents[5]  # Go up from rag/ -> services/ -> app/ -> backend/ -> src/ -> project_root/
 
 class LearningObjectiveQuality(BaseModel):
     """Quality assessment model for generated learning objectives"""
@@ -55,8 +59,12 @@ class RAGLearningObjectiveGenerator:
     Core innovation of the SE-QPT thesis
     """
 
-    def __init__(self, vector_db_path: str = "data/rag_vectordb"):
+    def __init__(self, vector_db_path: str = None):
         """Initialize the RAG pipeline"""
+        # Use absolute path based on project root
+        if vector_db_path is None:
+            vector_db_path = str(PROJECT_ROOT / "data" / "rag_vectordb")
+
         self.vector_db_path = vector_db_path
         self.embeddings = self._init_embeddings()
         self.llm = self._init_llm()

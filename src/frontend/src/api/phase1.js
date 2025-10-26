@@ -190,15 +190,17 @@ export const rolesApi = {
   /**
    * Suggest SE role based on process involvement
    * Uses process matching algorithm to find the best role match
-   * @param {String} username - Username with process data in UnknownRoleProcessMatrix
+   * @param {String} username - Username identifier
    * @param {Number} organizationId - Organization ID
+   * @param {Array} processes - Array of process objects with process_name and involvement
    * @returns {Promise} Suggested role with confidence score
    */
-  suggestRoleFromProcesses: async (username, organizationId) => {
+  suggestRoleFromProcesses: async (username, organizationId, processes) => {
     try {
       const response = await axiosInstance.post('/api/phase1/roles/suggest-from-processes', {
         username,
-        organizationId
+        organizationId,
+        processes
       });
       return response.data;
     } catch (error) {

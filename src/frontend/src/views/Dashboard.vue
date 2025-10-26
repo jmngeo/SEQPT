@@ -255,20 +255,25 @@
             <div class="competency-overview">
               <div v-if="competencyStats.length > 0">
                 <div
-                  v-for="competency in competencyStats.slice(0, 5)"
+                  v-for="competency in competencyStats"
                   :key="competency.name"
                   class="competency-item"
                 >
                   <div class="competency-info">
                     <span class="competency-name">{{ competency.name }}</span>
-                    <span class="competency-score">{{ competency.score }}/5</span>
+                    <span class="competency-score">{{ competency.score }}/{{ competency.requiredScore }}</span>
                   </div>
                   <el-progress
-                    :percentage="(competency.score / 5) * 100"
+                    :percentage="(competency.score / competency.requiredScore) * 100"
                     :show-text="false"
                     :stroke-width="6"
                     :color="getCompetencyColor(competency.score)"
                   />
+                  <div class="competency-status">
+                    <span class="status-label">
+                      {{ competency.gap <= 0 ? 'Proficient' : `Gap: ${competency.gap.toFixed(1)} levels` }}
+                    </span>
+                  </div>
                 </div>
 
                 <el-button type="text" @click="viewAllCompetencies" class="view-all-btn">
@@ -504,7 +509,7 @@ const navigateToPhase = (route) => {
 
 
 const viewAllCompetencies = () => {
-  router.push('/app/competencies')
+  router.push('/app/phases/2')
 }
 
 const viewAllObjectives = () => {
@@ -559,6 +564,47 @@ const loadDashboardData = async () => {
   const storedOrgCode = localStorage.getItem('user_organization_code')
   if (storedOrgCode) {
     organizationCode.value = storedOrgCode
+  }
+
+  // Fetch latest competency overview
+  try {
+    // Get token from localStorage (auth store doesn't restore it on page load)
+    const token = localStorage.getItem('se_qpt_token') || authStore.token
+    console.log('[Dashboard] Fetching competency overview, token exists:', !!token)
+
+    if (token) {
+      console.log('[Dashboard] Making request to /api/latest_competency_overview')
+      const response = await fetch('http://localhost:5000/api/latest_competency_overview', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      console.log('[Dashboard] Response status:', response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('[Dashboard] Competency overview loaded:', data)
+
+        // Map backend data to display format
+        competencyStats.value = data.competencies.map(comp => ({
+          name: comp.competency_name,
+          score: comp.current_score,
+          requiredScore: comp.required_score,
+          area: comp.competency_area,
+          gap: comp.gap
+        }))
+
+        console.log('[Dashboard] Competency stats set:', competencyStats.value)
+      } else {
+        const errorText = await response.text()
+        console.error('[Dashboard] Error response:', response.status, errorText)
+      }
+    } else {
+      console.warn('[Dashboard] No auth token available for competency overview')
+    }
+  } catch (error) {
+    console.error('[Dashboard] Error loading competency overview:', error)
   }
 
   // Set up next steps based on user role and actual progress
@@ -891,6 +937,17 @@ onMounted(() => {
   font-weight: 600;
   color: #409eff;
   font-size: 0.9rem;
+}
+
+.competency-status {
+  margin-top: 4px;
+  text-align: right;
+}
+
+.status-label {
+  font-size: 0.75rem;
+  color: #909399;
+  font-style: italic;
 }
 
 .objective-item {

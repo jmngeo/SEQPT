@@ -15,14 +15,9 @@ from app import create_app
 
 # Import all models from unified models.py
 from models import (
-    db, User, SECompetency, SERole, QualificationArchetype, Assessment,
-    CompetencyAssessmentResult, LearningObjective, QualificationPlan,
-    CompanyContext, RAGTemplate, LearningModule, LearningPath,
-    ModuleEnrollment, ModuleAssessment, LearningResource,
-    Organization, MVPUser, MaturityAssessment, CompetencyAssessment,
-    LearningPlan, RoleMapping,
-    calculate_maturity_score, select_archetype,
-    generate_learning_plan_templates, generate_basic_modules
+    db, User, SECompetency, SERole,
+    Organization, CompetencyAssessment,
+    calculate_maturity_score, select_archetype
 )
 
 def create_application():
@@ -51,9 +46,8 @@ def init_database():
             print("Populating initial roles...")
             populate_roles()
 
-        if QualificationArchetype.query.count() == 0:
-            print("Populating initial archetypes...")
-            populate_archetypes()
+        # NOTE: QualificationArchetype removed in Phase 2 cleanup (empty table)
+        # Use setup/populate scripts instead for full data population
 
         print("Database initialization complete!")
 
@@ -104,70 +98,8 @@ def populate_roles():
 
     db.session.commit()
 
-def populate_archetypes():
-    """Populate initial qualification archetypes"""
-    archetypes = [
-        {
-            'name': 'Project-Oriented Training',
-            'description': 'Learning through real-world project experience',
-            'typical_duration': '6-12 months',
-            'learning_format': 'project-based',
-            'target_audience': 'Experienced professionals',
-            'focus_area': 'Practical application',
-            'delivery_method': 'on-the-job'
-        },
-        {
-            'name': 'Intensive Bootcamp',
-            'description': 'Concentrated learning program',
-            'typical_duration': '2-4 weeks',
-            'learning_format': 'intensive',
-            'target_audience': 'Career changers',
-            'focus_area': 'Rapid skill acquisition',
-            'delivery_method': 'classroom'
-        },
-        {
-            'name': 'Self-Paced Online',
-            'description': 'Flexible online learning modules',
-            'typical_duration': '3-6 months',
-            'learning_format': 'self-paced',
-            'target_audience': 'Working professionals',
-            'focus_area': 'Flexible learning',
-            'delivery_method': 'online'
-        },
-        {
-            'name': 'Mentored Development',
-            'description': 'One-on-one mentoring with expert guidance',
-            'typical_duration': '6-18 months',
-            'learning_format': 'mentored',
-            'target_audience': 'High-potential individuals',
-            'focus_area': 'Personalized growth',
-            'delivery_method': 'mentoring'
-        },
-        {
-            'name': 'Blended Learning',
-            'description': 'Combination of online and in-person learning',
-            'typical_duration': '4-8 months',
-            'learning_format': 'blended',
-            'target_audience': 'Diverse learners',
-            'focus_area': 'Balanced approach',
-            'delivery_method': 'hybrid'
-        },
-        {
-            'name': 'Certification Track',
-            'description': 'Structured path to professional certification',
-            'typical_duration': '6-12 months',
-            'learning_format': 'structured',
-            'target_audience': 'Certification seekers',
-            'focus_area': 'Credential achievement',
-            'delivery_method': 'formal'
-        }
-    ]
-
-    for archetype_data in archetypes:
-        archetype = QualificationArchetype(**archetype_data)
-        db.session.add(archetype)
-
-    db.session.commit()
+# populate_archetypes() removed in Phase 2 cleanup - QualificationArchetype table removed (was empty)
+# Use setup/populate/ scripts for full database initialization instead
 
 if __name__ == '__main__':
     import argparse

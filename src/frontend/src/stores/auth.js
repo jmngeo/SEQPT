@@ -10,6 +10,7 @@ import { toast } from 'vue3-toastify'
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref(null)
+  const token = ref(null)
   const loading = ref(false)
   const error = ref(null)
 
@@ -58,11 +59,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   const clearAuth = () => {
     user.value = null
+    token.value = null
     error.value = null
 
     // Clear localStorage (Derik's pattern)
     localStorage.removeItem('isAdminAuthenticated')
     localStorage.removeItem('user')
+    localStorage.removeItem('se_qpt_token')
+
+    // Clear organization data
+    localStorage.removeItem('user_organization_code')
+    localStorage.removeItem('user_organization_id')
+    localStorage.removeItem('user_organization_name')
 
     // Clear SE-QPT related data to prevent cross-user contamination
     localStorage.removeItem('se-qpt-phase1-data')
@@ -83,30 +91,36 @@ export const useAuthStore = defineStore('auth', () => {
 
       const response = await authApi.login(credentials)
 
-      // Derik's response format: {success: true/false, message: "...", organization: {...}}
-      if (response.data.success) {
-        // Store user data
-        const userData = {
-          id: response.data.user?.id,  // Store user ID
-          username: response.data.user?.username || credentials.usernameOrEmail,
-          role: response.data.user?.role || 'employee'  // Get role from backend
-        }
-        setAuth(userData)
+      // Backend returns: { access_token, user, organization }
+      if (response.data.access_token && response.data.user) {
+        // Store authentication data
+        token.value = response.data.access_token
+        localStorage.setItem('se_qpt_token', response.data.access_token)
+
+        // Set user authentication (sets isAdminAuthenticated flag)
+        setAuth(response.data.user)
 
         // Store organization data if available
         if (response.data.organization) {
-          localStorage.setItem('user_organization_code', response.data.organization.code)
           localStorage.setItem('user_organization_id', response.data.organization.id)
           localStorage.setItem('user_organization_name', response.data.organization.name)
+          // Organization code (for inviting employees)
+          const orgCode = response.data.organization.organization_code || response.data.organization.code
+          if (orgCode) {
+            localStorage.setItem('user_organization_code', orgCode)
+          }
+        } else if (response.data.user.organization_id) {
+          // Fallback: just store organization ID if org details not included
+          localStorage.setItem('user_organization_id', response.data.user.organization_id)
         }
 
         toast.success('Login successful!')
         return { success: true }
       } else {
-        throw new Error(response.data.message || 'Login failed')
+        throw new Error('Login failed - invalid response from server')
       }
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Login failed'
+      const message = err.response?.data?.error || err.message || 'Login failed'
       error.value = message
       toast.error(message)
       return { success: false, error: message }
@@ -122,19 +136,32 @@ export const useAuthStore = defineStore('auth', () => {
 
       const response = await authApi.registerAdmin(userData)
 
-      if (response.data.success) {
-        // Store organization code for this user
-        localStorage.setItem('user_organization_code', response.data.organization_code)
-        toast.success(response.data.message)
+      // Backend returns: { access_token, user, organization, organization_code }
+      if (response.data.access_token) {
+        // Store authentication data
+        token.value = response.data.access_token
+        localStorage.setItem('se_qpt_token', response.data.access_token)
+
+        // Set user authentication (sets isAdminAuthenticated flag)
+        setAuth(response.data.user)
+
+        // Store organization data
+        if (response.data.organization) {
+          localStorage.setItem('user_organization_code', response.data.organization_code)
+          localStorage.setItem('user_organization_id', response.data.organization.id)
+          localStorage.setItem('user_organization_name', response.data.organization.name)
+        }
+
+        toast.success('Admin account created successfully!')
         return {
           success: true,
           organizationCode: response.data.organization_code
         }
       } else {
-        throw new Error(response.data.message || 'Admin registration failed')
+        throw new Error('Registration failed - no access token received')
       }
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Admin registration failed'
+      const message = err.response?.data?.error || err.message || 'Admin registration failed'
       error.value = message
       toast.error(message)
       return { success: false, error: message }
@@ -150,19 +177,32 @@ export const useAuthStore = defineStore('auth', () => {
 
       const response = await authApi.registerEmployee(userData)
 
-      if (response.data.success) {
-        // Store organization code that was used for registration
-        localStorage.setItem('user_organization_code', userData.organizationCode)
-        toast.success(response.data.message)
+      // Backend returns: { access_token, user, organization }
+      if (response.data.access_token) {
+        // Store authentication data
+        token.value = response.data.access_token
+        localStorage.setItem('se_qpt_token', response.data.access_token)
+
+        // Set user authentication (sets isAdminAuthenticated flag)
+        setAuth(response.data.user)
+
+        // Store organization data
+        if (response.data.organization) {
+          localStorage.setItem('user_organization_code', userData.organizationCode)
+          localStorage.setItem('user_organization_id', response.data.organization.id)
+          localStorage.setItem('user_organization_name', response.data.organization.name)
+        }
+
+        toast.success('Employee account created successfully!')
         return {
           success: true,
-          organizationName: response.data.organization_name
+          organizationName: response.data.organization?.name
         }
       } else {
-        throw new Error(response.data.message || 'Employee registration failed')
+        throw new Error('Registration failed - no access token received')
       }
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Employee registration failed'
+      const message = err.response?.data?.error || err.message || 'Employee registration failed'
       error.value = message
       toast.error(message)
       return { success: false, error: message }
@@ -209,6 +249,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     // State
     user,
+    token,
     loading,
     error,
 
