@@ -80,6 +80,8 @@ nul
 
 # Documentation (auto-generated)
 # Note: Keep manually written docs
+# Keep docs/ folder (organized project documentation)
+# Keep root-level MD files: README.md, SESSION_HANDOVER.md, etc.
 
 # Test outputs
 .pytest_cache/
@@ -108,12 +110,16 @@ auto-imports.d.ts
 components.d.ts
 
 # Large data files (adjust as needed)
-# data/large_datasets/
+# Track important data/ files, but ignore large generated/database files
+data/rag_vectordb/*.sqlite3
+data/rag_vectordb/*.parquet
+data/rag_vectordb/chroma/
+# data/large_datasets/  # Uncomment if you have large datasets folder
 
-# Backup files
+# Backup files (but keep important code backups)
 *~
 *.bak
-*.backup
+# *.backup  # Commented out - we want to track important backup files
 
 # Editor directories and files
 .vscode/*

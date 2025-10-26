@@ -132,20 +132,51 @@ def run_migrations():
         return False
 
 def initialize_data():
-    """Initialize database with sample data"""
+    """Initialize database with ALL required data using master script"""
     try:
         os.chdir(os.path.dirname(__file__))
-        result = subprocess.run(['python', 'run.py', '--init-db'],
+
+        print("\n" + "=" * 50)
+        print("IMPORTANT: Data Initialization")
+        print("=" * 50)
+        print("\nSE-QPT requires critical matrix data to function.")
+        print("This includes:")
+        print("  - Process-Competency Matrix (GLOBAL)")
+        print("  - Role-Process Matrix for Org 1 (TEMPLATE)")
+        print("\nWe will now run the master initialization script.")
+        print("This is REQUIRED - without it, the system will not work!")
+
+        response = input("\nRun master data initialization now? (yes/no): ")
+        if response.lower() != 'yes':
+            print("\n[WARNING] Skipping data initialization!")
+            print("You must run this manually later:")
+            print("  cd src/backend")
+            print("  python initialize_all_data.py")
+            return False
+
+        # Run the master initialization script
+        result = subprocess.run(['python', 'initialize_all_data.py'],
                               capture_output=True, text=True)
         if result.returncode == 0:
-            print("✓ Database initialized with sample data")
-            print(result.stdout)
+            print("\n✓ Data initialization completed successfully")
+            if result.stdout:
+                # Print last 30 lines to show summary
+                lines = result.stdout.strip().split('\n')
+                print('\n'.join(lines[-30:]))
             return True
         else:
-            print(f"✗ Data initialization failed: {result.stderr}")
+            print(f"\n✗ Data initialization failed!")
+            if result.stderr:
+                print("Error output:")
+                print(result.stderr)
+            if result.stdout:
+                print("Standard output:")
+                print(result.stdout)
             return False
     except Exception as e:
         print(f"✗ Data initialization error: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def main():
