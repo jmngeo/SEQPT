@@ -1,7 +1,7 @@
 /**
  * Standard SE Role Clusters (14 roles)
  * Based on SE4OWL research project
- * Used in Phase 1 Task 2: Identify SE Roles
+ * Used in Phase 1 Task 2: Roles & Responsibilities
  *
  * NOTE: Descriptions are brief summaries for UI display
  */

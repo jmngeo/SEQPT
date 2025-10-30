@@ -10,17 +10,6 @@
       </div>
     </template>
 
-    <!-- Summary of selected roles -->
-    <el-alert
-      v-if="rolesCount > 0"
-      type="info"
-      :closable="false"
-      show-icon
-      style="margin-bottom: 24px;"
-    >
-      <strong>Roles Identified:</strong> {{ rolesCount }} SE role(s)
-    </el-alert>
-
     <!-- Target group size options as clickable cards -->
     <div class="target-size-options">
       <el-card
@@ -60,7 +49,7 @@
         :loading="saving"
         @click="handleContinue"
       >
-        Continue to Strategy Selection
+        Continue to Role Selection
       </el-button>
     </div>
   </el-card>

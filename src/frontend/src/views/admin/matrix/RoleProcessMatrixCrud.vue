@@ -1,597 +1,694 @@
-<script setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from '@/api/axios';
-
-// Reactive data for roles, processes, and matrix
-const organizationId = ref(null);
-const organizationName = ref('');
-const roles = ref([]);
-const processes = ref([]);
-const roleProcessMatrix = ref({}); // { roleId: { processId: value } }
-const originalMatrix = ref({}); // Track original values for change detection
-const changedCells = ref(new Set()); // Track which cells have been changed
-const loading = ref(false);
-const saving = ref(false);
-
-// Get admin's organization from localStorage
-const getAdminOrganization = () => {
-  const orgId = localStorage.getItem('user_organization_id');
-  const orgName = localStorage.getItem('user_organization_name');
-
-  if (!orgId) {
-    console.error('No organization found for admin. Please login again.');
-    return false;
-  }
-
-  organizationId.value = parseInt(orgId);
-  organizationName.value = orgName || 'Your Organization';
-  return true;
-};
-
-// Fetch roles and processes
-const fetchRolesAndProcesses = async () => {
-  try {
-    loading.value = true;
-    const response = await axios.get('/roles_and_processes');
-    roles.value = response.data.roles;
-    processes.value = response.data.processes;
-  } catch (error) {
-    console.error('Error fetching roles and processes:', error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Fetch role-process matrix for ALL roles in the organization
-const fetchAllRoleProcessMatrices = async () => {
-  if (!organizationId.value) return;
-
-  try {
-    loading.value = true;
-    const matrixData = {};
-    const originalData = {};
-
-    // Fetch matrix for each role
-    for (const role of roles.value) {
-      const response = await axios.get(`/role_process_matrix/${organizationId.value}/${role.id}`);
-
-      matrixData[role.id] = {};
-      originalData[role.id] = {};
-
-      processes.value.forEach(process => {
-        const entry = response.data.find(e => e.iso_process_id === process.id);
-        const value = entry ? entry.role_process_value : 0;
-        matrixData[role.id][process.id] = value;
-        originalData[role.id][process.id] = value;
-      });
-    }
-
-    roleProcessMatrix.value = matrixData;
-    originalMatrix.value = JSON.parse(JSON.stringify(originalData));
-    changedCells.value.clear();
-  } catch (error) {
-    console.error('Error fetching role-process matrices:', error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Check if a cell has been changed
-const isCellChanged = (roleId, processId) => {
-  return changedCells.value.has(`${roleId}-${processId}`);
-};
-
-// Update cell value and track changes
-const updateCellValue = (roleId, processId, newValue) => {
-  roleProcessMatrix.value[roleId][processId] = newValue;
-
-  // Check if value differs from original
-  if (originalMatrix.value[roleId][processId] !== newValue) {
-    changedCells.value.add(`${roleId}-${processId}`);
-  } else {
-    changedCells.value.delete(`${roleId}-${processId}`);
-  }
-};
-
-// Get cell class for styling
-const getCellClass = (roleId, processId) => {
-  return isCellChanged(roleId, processId) ? 'cell-changed' : '';
-};
-
-// Value options for dropdown (just numbers, legend shows meaning)
-const valueOptions = [
-  { value: 0, label: '0' },
-  { value: 1, label: '1' },
-  { value: 2, label: '2' },
-  { value: 3, label: '3' }
-];
-
-// Check if there are unsaved changes
-const hasUnsavedChanges = computed(() => changedCells.value.size > 0);
-
-// Save all changes to the role-process matrix
-const saveAllChanges = async () => {
-  if (!organizationId.value || !hasUnsavedChanges.value) return;
-
-  try {
-    saving.value = true;
-
-    // Save matrix for each role that has changes
-    const rolesToUpdate = new Set();
-    changedCells.value.forEach(cellKey => {
-      const [roleId] = cellKey.split('-');
-      rolesToUpdate.add(parseInt(roleId));
-    });
-
-    for (const roleId of rolesToUpdate) {
-      await axios.put('/role_process_matrix/bulk', {
-        organization_id: organizationId.value,
-        role_cluster_id: roleId,
-        matrix: roleProcessMatrix.value[roleId]
-      });
-    }
-
-    // Update original matrix to current values
-    originalMatrix.value = JSON.parse(JSON.stringify(roleProcessMatrix.value));
-
-    // Clear changed cells after successful save
-    changedCells.value.clear();
-
-    alert(`Changes saved successfully!\n\nRole-Competency Matrix has been automatically recalculated for your organization.`);
-  } catch (error) {
-    console.error('Error saving role-process matrix:', error);
-    alert("Error saving changes. Please try again.");
-  } finally {
-    saving.value = false;
-  }
-};
-
-// Reset all changes
-const resetChanges = () => {
-  if (confirm('Are you sure you want to discard all unsaved changes?')) {
-    roleProcessMatrix.value = JSON.parse(JSON.stringify(originalMatrix.value));
-    changedCells.value.clear();
-  }
-};
-
-// Initialize on component mount
-onMounted(async () => {
-  // Get admin's organization
-  if (!getAdminOrganization()) {
-    alert('No organization found. Please login again.');
-    return;
-  }
-
-  // Fetch roles and processes
-  await fetchRolesAndProcesses();
-
-  // Fetch all matrices
-  if (roles.value.length > 0) {
-    await fetchAllRoleProcessMatrices();
-  }
-});
-</script>
-
 <template>
-  <div class="matrix-crud-container">
-    <div class="matrix-content">
-      <h1 class="matrix-title">Role-Process Matrix</h1>
-
-      <!-- Organization info -->
-      <div v-if="organizationId" class="info-banner">
-        <div class="banner-header">
-          <span class="info-icon">ℹ</span>
-          <strong>Organization-Specific Matrix:</strong> {{ organizationName }}
-        </div>
-        <div class="banner-body">
-          This matrix is organization-specific and only affects <strong>{{ organizationName }}</strong>.
-          Modified cells are highlighted in yellow. After saving, the Role-Competency Matrix will be automatically recalculated.
-        </div>
-      </div>
-
-      <!-- Legend -->
-      <div class="legend-container">
-        <div class="legend-title">Value Legend:</div>
-        <div class="legend-items">
-          <div class="legend-item">
-            <span class="legend-value">0</span>
-            <span class="legend-label">Not Relevant</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-value">1</span>
-            <span class="legend-label">Supporting</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-value">2</span>
-            <span class="legend-label">Responsible</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-value">3</span>
-            <span class="legend-label">Designing</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Loading state -->
-      <div v-if="loading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>Loading matrix data...</p>
-      </div>
-
-      <!-- Excel-style grid -->
-      <div v-else-if="roles.length > 0 && processes.length > 0" class="matrix-grid-container">
-        <div class="matrix-grid-wrapper">
-          <table class="matrix-grid">
-            <thead>
-              <tr>
-                <th class="corner-cell">
-                  <div class="corner-content">
-                    <span class="corner-label-top">Roles →</span>
-                    <span class="corner-label-bottom">Processes ↓</span>
-                  </div>
-                </th>
-                <th
-                  v-for="role in roles"
-                  :key="role.id"
-                  class="header-cell role-header"
-                >
-                  <div class="header-content">{{ role.name }}</div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="process in processes" :key="process.id">
-                <td class="header-cell process-header">
-                  <div class="header-content">{{ process.name }}</div>
-                </td>
-                <td
-                  v-for="role in roles"
-                  :key="`${role.id}-${process.id}`"
-                  class="data-cell"
-                  :class="getCellClass(role.id, process.id)"
-                >
-                  <el-select
-                    :model-value="roleProcessMatrix[role.id]?.[process.id]"
-                    @change="(val) => updateCellValue(role.id, process.id, val)"
-                    placeholder="Select"
-                    size="small"
-                    class="cell-select"
-                  >
-                    <el-option
-                      v-for="option in valueOptions"
-                      :key="option.value"
-                      :label="option.label"
-                      :value="option.value"
-                    />
-                  </el-select>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Action buttons -->
-        <div class="action-buttons">
-          <el-button
-            type="primary"
-            size="large"
-            :disabled="!hasUnsavedChanges || saving"
-            :loading="saving"
-            @click="saveAllChanges"
-          >
-            Save All Changes ({{ changedCells.size }} cells modified)
-          </el-button>
-          <el-button
-            size="large"
-            :disabled="!hasUnsavedChanges || saving"
-            @click="resetChanges"
-          >
-            Reset Changes
-          </el-button>
-        </div>
-
-        <!-- Change summary -->
-        <div v-if="hasUnsavedChanges" class="change-summary">
-          <span class="warning-icon">⚠</span>
-          <span>{{ changedCells.size }} cell(s) modified and not yet saved</span>
-        </div>
-      </div>
-
-      <!-- Empty state -->
-      <el-alert
-        v-else-if="!loading"
-        title="No Data Available"
-        type="warning"
-        description="No roles or processes found. Please ensure database is populated."
-        :closable="false"
-        style="margin-top: 20px; max-width: 800px;"
-      />
+  <div class="admin-matrix-container">
+    <!-- Header -->
+    <div class="page-header">
+      <h1 class="page-title">Role-Process Matrix Management</h1>
+      <p class="page-subtitle">
+        Manage role-process relationships for <strong>{{ organizationName }}</strong>. Changes will automatically recalculate the role-competency matrix.
+      </p>
     </div>
+
+    <!-- Matrix Content -->
+    <div v-if="authStore.organizationId">
+      <el-card class="matrix-card" shadow="hover">
+
+        <!-- Loading State -->
+        <div v-if="loading" class="loading-container">
+          <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+          <p>Loading matrix data...</p>
+        </div>
+
+        <!-- Matrix Content -->
+        <div v-else-if="roles.length > 0 && processes.length > 0">
+          <!-- Role Summary -->
+          <div class="role-summary">
+            <div class="summary-item">
+              <el-icon :size="20" color="#409EFF"><User /></el-icon>
+              <span><strong>Roles:</strong> {{ roles.length }}</span>
+            </div>
+            <div class="summary-item">
+              <el-icon :size="20" color="#67C23A"><List /></el-icon>
+              <span><strong>Processes:</strong> {{ processes.length }}</span>
+            </div>
+            <div v-if="changedCellsCount > 0" class="summary-item">
+              <el-icon :size="20" color="#E6A23C"><Edit /></el-icon>
+              <span><strong>Changes:</strong> {{ changedCellsCount }} cells modified</span>
+            </div>
+          </div>
+
+          <!-- Matrix Table: TRANSPOSED - Processes as Rows, Roles as Columns -->
+          <div class="matrix-table-container">
+            <el-table
+              :data="processes"
+              border
+              stripe
+              style="width: 100%"
+              :header-cell-style="{ background: '#f5f7fa', fontWeight: 'bold' }"
+              :row-class-name="getProcessRowClass"
+              max-height="600"
+            >
+              <!-- Process Column (Fixed Left) -->
+              <el-table-column
+                label="SE Process"
+                width="250"
+                fixed
+              >
+                <template #default="{ row }">
+                  <div class="process-cell">
+                    <div class="process-name">{{ row.name }}</div>
+                    <!-- Validation Icons -->
+                    <div v-if="getProcessValidation(row.id).isValid" class="validation-icon valid">
+                      <el-icon color="#67C23A"><CircleCheck /></el-icon>
+                    </div>
+                    <div v-else class="validation-icon invalid">
+                      <el-tooltip :content="getProcessValidation(row.id).message" placement="right">
+                        <el-icon color="#F56C6C"><CircleClose /></el-icon>
+                      </el-tooltip>
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- Role Columns (Dynamic) -->
+              <el-table-column
+                v-for="role in roles"
+                :key="role.id"
+                :width="140"
+                align="center"
+              >
+                <template #header>
+                  <div class="role-header">
+                    <div class="role-header-name">{{ role.org_role_name || role.role_name }}</div>
+                    <div v-if="role.standard_role_name" class="role-header-cluster">
+                      ({{ role.standard_role_name }})
+                    </div>
+                    <div v-else-if="role.identification_method === 'CUSTOM'" class="role-header-badge">
+                      <el-tag size="small" type="warning">Custom</el-tag>
+                    </div>
+                  </div>
+                </template>
+                <template #default="{ row: process }">
+                  <el-input-number
+                    v-model="matrix[process.id][role.id]"
+                    :min="0"
+                    :max="3"
+                    :step="1"
+                    size="small"
+                    controls-position="right"
+                    :class="{ 'cell-changed': isCellChanged(process.id, role.id) }"
+                    @change="updateCellValue(process.id, role.id)"
+                    style="width: 100%"
+                  />
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- Legend -->
+          <div class="legend-section">
+            <el-divider content-position="left">
+              <strong>Legend & RACI Values</strong>
+            </el-divider>
+            <div class="legend-items">
+              <div class="legend-item">
+                <el-tag size="small" type="info">0</el-tag>
+                <span>Not Involved</span>
+              </div>
+              <div class="legend-item">
+                <el-tag size="small" type="success">1</el-tag>
+                <span>Supports (provides assistance)</span>
+              </div>
+              <div class="legend-item">
+                <el-tag size="small" type="warning">2</el-tag>
+                <span>Responsible (executes tasks) - <strong>Required: Exactly 1 per process</strong></span>
+              </div>
+              <div class="legend-item">
+                <el-tag size="small" type="danger">3</el-tag>
+                <span>Accountable/Designs (owns and decides) - <strong>Max: 1 per process</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="action-buttons">
+            <el-button
+              size="large"
+              @click="handleReset"
+              :disabled="changedCellsCount === 0"
+            >
+              <el-icon><RefreshLeft /></el-icon>
+              Reset Changes
+            </el-button>
+            <el-button
+              type="primary"
+              size="large"
+              :loading="saving"
+              :disabled="!allProcessesValid || roles.length === 0 || changedCellsCount === 0"
+              @click="handleSave"
+            >
+              <el-icon><Check /></el-icon>
+              Save Changes ({{ changedCellsCount }} cells)
+            </el-button>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="empty-state">
+          <el-icon :size="48" color="#C0C4CC"><Warning /></el-icon>
+          <p>No roles found for this organization.</p>
+          <p style="font-size: 13px; color: #909399; margin-top: 8px;">
+            Organization must complete Phase 1 Task 2 to define roles before the matrix can be edited.
+          </p>
+        </div>
+      </el-card>
+    </div>
+
+    <!-- No Organization State -->
+    <el-empty
+      v-else
+      description="No organization found. Please ensure you are logged in with a valid organization account."
+      :image-size="200"
+    />
   </div>
 </template>
 
-<style scoped>
-.matrix-crud-container {
-  min-height: 100vh;
-  padding: var(--se-spacing-xl);
-  background-color: var(--se-bg-secondary);
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import axios from '@/api/axios'
+import { useAuthStore } from '@/stores/auth'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  Loading,
+  User,
+  List,
+  Edit,
+  Warning,
+  CircleCheck,
+  CircleClose,
+  Check,
+  RefreshLeft
+} from '@element-plus/icons-vue'
+
+const authStore = useAuthStore()
+
+// Data
+const loading = ref(false)
+const saving = ref(false)
+const roles = ref([])
+const processes = ref([])
+const matrix = ref({}) // { processId: { roleId: value } }
+const originalMatrix = ref({}) // Track original values for change detection
+const changedCells = ref(new Set()) // Track which cells have been changed
+
+// Changed cells count
+const changedCellsCount = computed(() => changedCells.value.size)
+
+// RACI Validation Functions
+const validateProcess = (processId) => {
+  if (!matrix.value[processId]) {
+    return {
+      hasResponsible: false,
+      responsibleCount: 0,
+      accountableCount: 0,
+      isValid: false,
+      message: 'No data for this process'
+    }
+  }
+
+  const values = roles.value.map(role => matrix.value[processId][role.id] || 0)
+  const responsibleCount = values.filter(v => v === 2).length
+  const accountableCount = values.filter(v => v === 3).length
+
+  const hasResponsible = responsibleCount === 1
+  const validAccountable = accountableCount <= 1
+  const isValid = hasResponsible && validAccountable
+
+  let message = ''
+  if (!hasResponsible) {
+    if (responsibleCount === 0) {
+      message = 'Missing Responsible role (need exactly 1 role with value 2)'
+    } else {
+      message = `Multiple Responsible roles (${responsibleCount} found, need exactly 1)`
+    }
+  } else if (!validAccountable) {
+    message = `Multiple Accountable roles (${accountableCount} found, max is 1)`
+  } else {
+    message = 'Valid'
+  }
+
+  return {
+    hasResponsible,
+    responsibleCount,
+    accountableCount,
+    isValid,
+    message
+  }
 }
 
-.matrix-content {
-  max-width: 1400px;
+const getProcessValidation = (processId) => {
+  return validateProcess(processId)
+}
+
+// Validation computed properties
+const processValidations = computed(() => {
+  const validations = {}
+  processes.value.forEach(process => {
+    validations[process.id] = validateProcess(process.id)
+  })
+  return validations
+})
+
+const allProcessesValid = computed(() => {
+  return Object.values(processValidations.value).every(v => v.isValid)
+})
+
+const invalidProcessCount = computed(() => {
+  return Object.values(processValidations.value).filter(v => !v.isValid).length
+})
+
+const processesWithoutResponsible = computed(() => {
+  return processes.value.filter(p =>
+    processValidations.value[p.id] && !processValidations.value[p.id].hasResponsible
+  )
+})
+
+const processesWithMultipleResponsible = computed(() => {
+  return processes.value.filter(p =>
+    processValidations.value[p.id] && processValidations.value[p.id].responsibleCount > 1
+  )
+})
+
+const processesWithMultipleAccountable = computed(() => {
+  return processes.value.filter(p =>
+    processValidations.value[p.id] && processValidations.value[p.id].accountableCount > 1
+  )
+})
+
+// Row class for validation highlighting
+const getProcessRowClass = ({ row }) => {
+  const validation = getProcessValidation(row.id)
+  if (!validation.isValid) {
+    return 'invalid-process-row'
+  }
+  return ''
+}
+
+// Check if a cell has been changed
+const isCellChanged = (processId, roleId) => {
+  return changedCells.value.has(`${processId}-${roleId}`)
+}
+
+// Update cell value and track changes
+const updateCellValue = (processId, roleId) => {
+  const newValue = matrix.value[processId][roleId]
+
+  // Check if value differs from original
+  if (originalMatrix.value[processId][roleId] !== newValue) {
+    changedCells.value.add(`${processId}-${roleId}`)
+  } else {
+    changedCells.value.delete(`${processId}-${roleId}`)
+  }
+}
+
+// Get organization name
+const organizationName = computed(() => authStore.organizationName || 'Your Organization')
+
+// Fetch processes
+const fetchProcesses = async () => {
+  try {
+    const processResponse = await axios.get('/roles_and_processes')
+    processes.value = processResponse.data.processes
+    console.log('[AdminMatrix] Processes loaded:', processes.value)
+  } catch (error) {
+    console.error('[AdminMatrix] Error fetching processes:', error)
+    ElMessage.error('Failed to load processes')
+  }
+}
+
+// Fetch roles for organization
+const fetchOrganizationRoles = async () => {
+  if (!authStore.organizationId) return
+
+  try {
+    loading.value = true
+    const response = await axios.get(`/organization_roles/${authStore.organizationId}`)
+    roles.value = response.data
+    console.log('[AdminMatrix] Organization roles loaded:', roles.value)
+  } catch (error) {
+    console.error('[AdminMatrix] Error fetching roles:', error)
+    ElMessage.error('Failed to load organization roles')
+    roles.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// Fetch existing matrix values for all roles
+const fetchMatrixValues = async () => {
+  if (!authStore.organizationId || roles.value.length === 0) return
+
+  try {
+    loading.value = true
+    const matrixData = {}
+    const originalData = {}
+
+    // Initialize matrix structure: matrix[processId][roleId] = value
+    processes.value.forEach(process => {
+      matrixData[process.id] = {}
+      originalData[process.id] = {}
+
+      // Initialize all cells to 0
+      roles.value.forEach(role => {
+        matrixData[process.id][role.id] = 0
+        originalData[process.id][role.id] = 0
+      })
+    })
+
+    // Fetch matrix for each role and populate
+    for (const role of roles.value) {
+      try {
+        console.log(`[AdminMatrix] Fetching matrix for role ID ${role.id} (${role.org_role_name})`)
+        const response = await axios.get(
+          `/role_process_matrix/${authStore.organizationId}/${role.id}`
+        )
+
+        console.log(`[AdminMatrix] Received ${response.data.length} entries for role ${role.id}`)
+
+        // Populate matrix with fetched values
+        response.data.forEach(entry => {
+          const processId = entry.iso_process_id
+          const value = entry.role_process_value
+          if (matrixData[processId]) {
+            matrixData[processId][role.id] = value
+            originalData[processId][role.id] = value
+          }
+        })
+      } catch (error) {
+        console.error(`[AdminMatrix] Error fetching matrix for role ${role.id}:`, error)
+        // Continue with zeros for this role
+      }
+    }
+
+    matrix.value = matrixData
+    originalMatrix.value = JSON.parse(JSON.stringify(originalData))
+    changedCells.value.clear()
+
+    console.log('[AdminMatrix] Matrix loaded successfully')
+  } catch (error) {
+    console.error('[AdminMatrix] Error fetching matrix:', error)
+    ElMessage.error('Failed to load existing matrix values')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Save matrix values
+const handleSave = async () => {
+  if (!allProcessesValid.value) {
+    ElMessage.error('Please fix validation errors before saving')
+    return
+  }
+
+  if (changedCellsCount.value === 0) {
+    ElMessage.info('No changes to save')
+    return
+  }
+
+  saving.value = true
+  try {
+    // Save each role's matrix separately (API expects one role at a time)
+    for (const role of roles.value) {
+      // Prepare matrix for this role: { processId: value }
+      const roleMatrix = {}
+      processes.value.forEach(process => {
+        roleMatrix[process.id] = matrix.value[process.id][role.id]
+      })
+
+      // Call API for this role
+      await axios.put('/role_process_matrix/bulk', {
+        organization_id: authStore.organizationId,
+        role_cluster_id: role.id,
+        matrix: roleMatrix
+      })
+
+      console.log(`[AdminMatrix] Saved matrix for role ${role.id}`)
+    }
+
+    ElMessage.success('Role-process matrix saved successfully! Role-competency matrix has been recalculated.')
+
+    // Reset change tracking
+    originalMatrix.value = JSON.parse(JSON.stringify(matrix.value))
+    changedCells.value.clear()
+  } catch (error) {
+    console.error('[AdminMatrix] Save failed:', error)
+    ElMessage.error('Failed to save matrix. Please try again.')
+  } finally {
+    saving.value = false
+  }
+}
+
+// Reset changes
+const handleReset = () => {
+  if (changedCells.value.size === 0) return
+
+  ElMessageBox.confirm(
+    'Are you sure you want to discard all unsaved changes?',
+    'Reset Changes',
+    {
+      confirmButtonText: 'Reset',
+      cancelButtonText: 'Cancel',
+      type: 'warning'
+    }
+  ).then(() => {
+    matrix.value = JSON.parse(JSON.stringify(originalMatrix.value))
+    changedCells.value.clear()
+    ElMessage.success('Changes have been reset')
+  }).catch(() => {
+    // User cancelled
+  })
+}
+
+// Initialize
+onMounted(async () => {
+  console.log('[AdminMatrix] Mounted - Organization ID:', authStore.organizationId)
+  await fetchProcesses()
+  await fetchOrganizationRoles()
+  if (roles.value.length > 0) {
+    await fetchMatrixValues()
+  }
+})
+</script>
+
+<style scoped>
+.admin-matrix-container {
+  padding: 24px;
+  padding-left: 40px;
+  max-width: 100%;
   margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+  padding-left: 16px;
+}
+
+.page-title {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.matrix-card {
+  margin-bottom: 24px;
+}
+
+/* Loading */
+.loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #909399;
 }
 
-.matrix-title {
-  font-size: var(--se-font-size-extra-large);
-  font-weight: var(--se-font-weight-primary);
-  color: var(--se-text-primary);
-  margin-bottom: var(--se-spacing-xl);
+.loading-container p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+/* Role Summary */
+.role-summary {
+  display: flex;
+  gap: 24px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border: 1px solid #e4e7ed;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #606266;
+}
+
+/* Matrix Table */
+.matrix-table-container {
+  margin-bottom: 24px;
+  overflow-x: auto;
+  overflow-y: visible;
+  position: relative;
+}
+
+/* Force scrollbar to always be visible */
+.matrix-table-container::-webkit-scrollbar {
+  height: 12px;
+  -webkit-appearance: none;
+}
+
+.matrix-table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.matrix-table-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 6px;
+}
+
+.matrix-table-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Process Cell */
+.process-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  padding-right: 28px; /* Space for validation icon */
+  min-height: 36px; /* Ensure enough height for icon */
+}
+
+.process-name {
+  font-weight: 500;
+  color: #303133;
+  font-size: 13px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.validation-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Role Header */
+.role-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 4px;
+}
+
+.role-header-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #303133;
   text-align: center;
+  word-wrap: break-word;
+  line-height: 1.3;
 }
 
-.legend-container {
-  width: 100%;
-  max-width: 1200px;
-  padding: var(--se-spacing-base);
-  margin-bottom: var(--se-spacing-lg);
-  background-color: var(--se-bg-primary);
-  border-radius: var(--se-border-radius-base);
-  border: 1px solid var(--se-border-lighter);
+.role-header-cluster {
+  font-size: 11px;
+  color: #606266;
+  text-align: center;
+  line-height: 1.2;
 }
 
-.legend-title {
-  font-weight: var(--se-font-weight-secondary);
-  color: var(--se-text-secondary);
-  margin-bottom: var(--se-spacing-sm);
-  font-size: var(--se-font-size-small);
+.role-header-badge {
+  margin-top: 2px;
+}
+
+/* Changed cell highlighting */
+.cell-changed :deep(.el-input-number__decrease),
+.cell-changed :deep(.el-input-number__increase) {
+  background-color: #FFF7E6 !important;
+}
+
+.cell-changed :deep(input) {
+  background-color: #FFF7E6 !important;
+}
+
+/* Invalid row highlighting */
+:deep(.invalid-process-row) {
+  background-color: #FEF0F0 !important;
+}
+
+:deep(.invalid-process-row:hover) {
+  background-color: #FDE2E2 !important;
+}
+
+/* Legend */
+.legend-section {
+  margin-top: 24px;
 }
 
 .legend-items {
   display: flex;
-  gap: var(--se-spacing-lg);
   flex-wrap: wrap;
+  gap: 16px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: var(--se-spacing-xs);
+  gap: 8px;
+  font-size: 13px;
+  color: #606266;
 }
 
-.legend-value {
-  display: inline-flex;
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  background-color: var(--se-primary);
-  color: white;
-  border-radius: 4px;
-  font-weight: var(--se-font-weight-secondary);
-  font-size: var(--se-font-size-small);
-}
-
-.legend-label {
-  color: var(--se-text-primary);
-  font-size: var(--se-font-size-small);
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--se-spacing-base);
-  padding: var(--se-spacing-xl);
-  color: var(--se-text-secondary);
-  font-family: var(--se-font-family);
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--se-border-lighter);
-  border-top-color: var(--se-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.matrix-grid-container {
-  width: 100%;
-  max-width: 1400px;
-  margin-bottom: var(--se-spacing-lg);
-}
-
-.matrix-grid-wrapper {
-  overflow-x: auto;
-  background-color: var(--se-bg-primary);
-  border-radius: var(--se-border-radius-base);
-  box-shadow: var(--se-shadow-base);
-  margin-bottom: var(--se-spacing-lg);
-}
-
-.matrix-grid {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--se-font-size-small);
-}
-
-.corner-cell {
-  background-color: #f8f9fa;
-  border: 1px solid var(--se-border-lighter);
-  padding: var(--se-spacing-sm);
-  font-weight: var(--se-font-weight-secondary);
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  min-width: 180px;
-}
-
-.corner-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.corner-label-top,
-.corner-label-bottom {
-  font-size: 11px;
-  color: var(--se-text-secondary);
-  font-weight: normal;
-}
-
-.header-cell {
-  background-color: #f8f9fa;
-  border: 1px solid var(--se-border-lighter);
-  padding: var(--se-spacing-sm);
-  font-weight: var(--se-font-weight-secondary);
+  padding: 60px 20px;
+  color: #909399;
   text-align: center;
 }
 
-.role-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  min-width: 80px;
-  max-width: 80px;
-  height: 250px;
-  padding: 0;
-  vertical-align: bottom;
-  position: relative;
+.empty-state p {
+  margin-top: 16px;
+  font-size: 14px;
 }
 
-.role-header .header-content {
-  writing-mode: vertical-lr;
-  transform: rotate(180deg);
-  white-space: normal;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  height: 100%;
-  width: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 8px 4px;
-  text-align: center;
-}
-
-.process-header {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  text-align: left;
-  min-width: 180px;
-  background-color: #e9ecef;
-}
-
-.header-content {
-  font-size: var(--se-font-size-small);
-  color: var(--se-text-primary);
-  line-height: 1.3;
-}
-
-.data-cell {
-  border: 1px solid var(--se-border-lighter);
-  padding: 4px;
-  text-align: center;
-  background-color: white;
-  transition: all 0.2s ease;
-}
-
-.data-cell:hover {
-  background-color: #f0f7ff;
-}
-
-.data-cell.cell-changed {
-  background-color: #fff3cd;
-  border-color: #ffc107;
-  box-shadow: inset 0 0 0 1px #ffc107;
-}
-
-.data-cell.cell-changed:hover {
-  background-color: #ffe9a0;
-}
-
-.cell-select {
-  width: 100%;
-}
-
-.cell-select :deep(.el-input__wrapper) {
-  box-shadow: none;
-  background-color: transparent;
-  padding: 2px 8px;
-}
-
-.cell-select :deep(.el-input__inner) {
-  text-align: center;
-  font-size: var(--se-font-size-small);
-}
-
+/* Action Buttons */
 .action-buttons {
   display: flex;
-  gap: var(--se-spacing-base);
-  justify-content: center;
-  margin-top: var(--se-spacing-lg);
-}
-
-.change-summary {
-  display: flex;
-  align-items: center;
-  gap: var(--se-spacing-sm);
-  justify-content: center;
-  margin-top: var(--se-spacing-base);
-  padding: var(--se-spacing-sm) var(--se-spacing-base);
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: var(--se-border-radius-base);
-  color: #856404;
-  font-size: var(--se-font-size-base);
-  font-family: var(--se-font-family);
-}
-
-.warning-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.info-banner {
-  width: 100%;
-  max-width: 1200px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background-color: #e3f2fd;
-  border: 1px solid #2196f3;
-  border-radius: var(--se-border-radius-base);
-  font-family: var(--se-font-family);
-}
-
-.banner-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #1976d2;
-  font-size: var(--se-font-size-base);
-  font-weight: var(--se-font-weight-secondary);
-  margin-bottom: 8px;
-}
-
-.info-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-
-.banner-body {
-  color: #0d47a1;
-  font-size: var(--se-font-size-base);
-  line-height: 1.6;
-  font-family: var(--se-font-family);
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #e4e7ed;
+  margin-top: 24px;
 }
 </style>

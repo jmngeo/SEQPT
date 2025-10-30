@@ -78,24 +78,64 @@
             />
           </div>
 
-          <div class="roles-grid">
-            <div
-              v-for="role in phase1Roles"
-              :key="role.standardRoleId || role.id"
-              class="role-card"
-              :class="{ selected: selectedRoleIds.includes(role.standardRoleId || role.id) }"
-              @click="toggleRoleSelection(role.standardRoleId || role.id)"
+          <!-- Warning banner for unconfigured roles -->
+          <div v-if="hasUnconfiguredRoles" class="unconfigured-roles-warning">
+            <el-alert
+              title="Some roles are not configured"
+              type="warning"
+              :closable="false"
+              show-icon
             >
-              <div class="role-header">
-                <h4 class="role-name">{{ getRoleName(role) }}</h4>
-              </div>
+              <template #default>
+                <p>
+                  Disabled roles (shown in grey) have not been configured in the Role-Process Matrix.
+                  These roles cannot be selected for assessment until they are configured.
+                </p>
+                <p style="margin-top: 8px;">
+                  <strong>To configure:</strong> Admin users can edit the Role-Process Matrix at
+                  <router-link to="/admin/matrix/role-process" style="color: #409eff; text-decoration: underline;">
+                    Admin → Matrix Management → Role-Process Matrix
+                  </router-link>
+                </p>
+              </template>
+            </el-alert>
+          </div>
 
-              <p class="role-description">{{ getRoleDescription(role) }}</p>
+          <div class="roles-grid">
+            <el-tooltip
+              v-for="role in phase1Roles"
+              :key="role.id"
+              :disabled="role.has_competencies !== false"
+              placement="top"
+              effect="dark"
+            >
+              <template #content>
+                <div style="max-width: 250px;">
+                  <strong>Role not configured</strong><br/>
+                  This role needs to be configured in the Role-Process Matrix before it can be assessed.
+                  Contact your admin to configure this role.
+                </div>
+              </template>
+              <div
+                class="role-card"
+                :class="{
+                  selected: selectedRoleIds.includes(role.id),
+                  disabled: role.has_competencies === false
+                }"
+                @click="role.has_competencies !== false && toggleRoleSelection(role.id)"
+              >
+                <div class="role-header">
+                  <h4 class="role-name">{{ getRoleName(role) }}</h4>
+                  <el-tag v-if="role.has_competencies === false" type="warning" size="small">Not Configured</el-tag>
+                </div>
 
-              <div class="selection-indicator" v-if="selectedRoleIds.includes(role.standardRoleId || role.id)">
-                <el-icon><Check /></el-icon>
+                <p class="role-description">{{ getRoleDescription(role) }}</p>
+
+                <div class="selection-indicator" v-if="selectedRoleIds.includes(role.id)">
+                  <el-icon><Check /></el-icon>
+                </div>
               </div>
-            </div>
+            </el-tooltip>
           </div>
 
           <div class="selected-roles-summary" v-if="selectedRoleIds.length > 0">
@@ -623,6 +663,11 @@ const phase1Roles = ref([])
 const selectedRoleIds = ref([])
 const phase1MaturityId = ref(null)
 
+// Check if there are any unconfigured roles
+const hasUnconfiguredRoles = computed(() => {
+  return phase1Roles.value.some(role => role.has_competencies === false)
+})
+
 // Legacy - keeping for compatibility
 const selectedPathway = ref('role-based') // Always role-based now
 const selectedRole = ref(null)
@@ -919,7 +964,9 @@ const getRoleName = (role) => {
 
 // Helper function to get role description
 const getRoleDescription = (role) => {
-  return role.standard_role_description || role.standardRoleDescription || 'No description available'
+  // For standard-derived roles: use standard_role_description (from role_cluster)
+  // For custom roles: use role_description (user-entered description)
+  return role.standard_role_description || role.standardRoleDescription || role.role_description || role.description || 'No description available'
 }
 
 const loadRoles = async () => {
@@ -1710,6 +1757,15 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+.unconfigured-roles-warning {
+  margin-bottom: 24px;
+}
+
+.unconfigured-roles-warning p {
+  margin: 0;
+  line-height: 1.6;
+}
+
 .roles-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -1737,6 +1793,24 @@ onMounted(async () => {
   border-color: #67c23a;
   background: #f0f9f2;
   position: relative;
+}
+
+.role-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f7fa;
+  border-color: #dcdfe6;
+}
+
+.role-card.disabled:hover {
+  border-color: #dcdfe6;
+  transform: none;
+  box-shadow: none;
+}
+
+.role-card.disabled .role-name,
+.role-card.disabled .role-description {
+  color: #909399;
 }
 
 .role-card.selected::after {

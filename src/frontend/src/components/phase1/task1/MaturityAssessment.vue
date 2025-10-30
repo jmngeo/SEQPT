@@ -4,6 +4,14 @@
       <h3>Systems Engineering Maturity Assessment</h3>
       <p>Answer the following 4 questions to assess your organization's SE maturity level.</p>
 
+      <!-- Why Maturity Assessment Description -->
+      <div class="maturity-rationale">
+        <strong>Why measure maturity?</strong> Understanding your organization's SE maturity level is the foundation for effective qualification planning.
+        It helps identify the current state of SE practices, processes, and capabilities across your organization.
+        This baseline assessment enables targeted training recommendations that match your organization's readiness and ensures that
+        qualification strategies are aligned with your actual needs and capabilities.
+      </div>
+
       <div class="progress-info">
         <el-progress
           :percentage="progressPercentage"
@@ -393,6 +401,25 @@ onMounted(() => {
   margin: 0 0 20px 0;
   color: #606266;
   font-size: 14px;
+}
+
+.maturity-rationale {
+  margin: 0 0 20px 0;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%);
+  border-left: 4px solid #2196f3;
+  border-radius: 8px;
+  color: #1565c0;
+  font-size: 14px;
+  line-height: 1.6;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+
+.maturity-rationale strong {
+  color: #0d47a1;
+  font-weight: 600;
+  display: inline-block;
+  margin-right: 4px;
 }
 
 .progress-info {

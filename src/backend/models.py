@@ -135,6 +135,59 @@ class RoleCluster(db.Model):
         }
 
 
+class OrganizationRoles(db.Model):
+    """
+    User-defined roles for each organization
+    Maps organization-specific roles to optional standard clusters
+
+    Created during Phase 1 Task 2 (Role Identification) where users either:
+    - Select from 14 standard role clusters and customize names
+    - Define custom roles not mapped to any cluster
+
+    Created: 2025-10-29 (Migration 001_create_organization_roles_with_migration.sql)
+    """
+    __tablename__ = 'organization_roles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id', ondelete='CASCADE'), nullable=False)
+    role_name = db.Column(db.String(255), nullable=False)
+    role_description = db.Column(db.Text)
+    standard_role_cluster_id = db.Column(db.Integer, db.ForeignKey('role_cluster.id'))
+    identification_method = db.Column(db.String(50), default='STANDARD')  # 'STANDARD' or 'CUSTOM' or 'TASK_BASED'
+    participating_in_training = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    organization = db.relationship('Organization', backref=db.backref('org_roles', cascade="all, delete-orphan", lazy=True))
+    standard_cluster = db.relationship('RoleCluster', backref='organization_role_mappings')
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'role_name', name='organization_roles_organization_id_role_name_key'),
+    )
+
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'organization_id': self.organization_id,
+            'name': self.role_name,  # For DerikCompetencyBridge.vue (role.name)
+            'description': self.role_description,  # For DerikCompetencyBridge.vue (role.description)
+            'orgRoleName': self.role_name,  # For Phase 1 Task 2 components
+            'role_name': self.role_name,
+            'role_description': self.role_description,
+            'standardRoleId': self.standard_role_cluster_id,  # Frontend expects this key
+            'standard_role_cluster_id': self.standard_role_cluster_id,
+            'standardRoleName': self.standard_cluster.role_cluster_name if self.standard_cluster else None,
+            'standard_role_description': self.standard_cluster.role_cluster_description if self.standard_cluster else None,
+            'identificationMethod': self.identification_method,  # Frontend expects this key
+            'identification_method': self.identification_method,
+            'participating_in_training': self.participating_in_training,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 # =============================================================================
 # SECTION 2: ISO/IEC 15288 PROCESS MODELS (Derik's Task-Based Role Mapping)
 # =============================================================================
@@ -184,19 +237,25 @@ class IsoProcesses(db.Model):
 
 class RoleProcessMatrix(db.Model):
     """
-    Maps SE role clusters to ISO processes
+    Maps organization-specific roles to ISO processes
     Defines which processes each role is involved in and at what level
+
+    NOTE: Column 'role_cluster_id' is a legacy name - it actually references
+    organization_roles.id (user-defined roles), not role_cluster.id.
+    Name kept for backward compatibility.
+
+    Updated: 2025-10-30 - FK changed from role_cluster to organization_roles
     """
     __tablename__ = 'role_process_matrix'
 
     id = db.Column(db.Integer, primary_key=True)
-    role_cluster_id = db.Column(db.Integer, db.ForeignKey('role_cluster.id'), nullable=False)
+    role_cluster_id = db.Column(db.Integer, db.ForeignKey('organization_roles.id', ondelete='CASCADE'), nullable=False)
     iso_process_id = db.Column(db.Integer, db.ForeignKey('iso_processes.id'), nullable=False)
     role_process_value = db.Column(db.Integer, nullable=False, default=-100)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
 
     # Relationships
-    role_cluster = db.relationship('RoleCluster', backref=db.backref('role_process_matrices', cascade="all, delete-orphan", lazy=True))
+    organization_role = db.relationship('OrganizationRoles', backref=db.backref('process_matrices', cascade="all, delete-orphan", lazy=True))
     iso_process = db.relationship('IsoProcesses', backref=db.backref('role_process_matrices', cascade="all, delete-orphan", lazy=True))
     organization = db.relationship('Organization', backref=db.backref('role_process_matrices', cascade="all, delete-orphan", lazy=True))
 
@@ -245,20 +304,26 @@ class ProcessCompetencyMatrix(db.Model):
 
 class RoleCompetencyMatrix(db.Model):
     """
-    Maps SE role clusters to competencies
+    Maps organization-specific roles to competencies
     Defines which competencies each role requires and at what level
     Calculated from RoleProcessMatrix × ProcessCompetencyMatrix
+
+    NOTE: Column 'role_cluster_id' is a legacy name - it actually references
+    organization_roles.id (user-defined roles), not role_cluster.id.
+    Name kept for backward compatibility.
+
+    Updated: 2025-10-30 - FK changed from role_cluster to organization_roles
     """
     __tablename__ = 'role_competency_matrix'
 
     id = db.Column(db.Integer, primary_key=True)
-    role_cluster_id = db.Column(db.Integer, db.ForeignKey('role_cluster.id'), nullable=False)
+    role_cluster_id = db.Column(db.Integer, db.ForeignKey('organization_roles.id', ondelete='CASCADE'), nullable=False)
     competency_id = db.Column(db.Integer, db.ForeignKey('competency.id'), nullable=False)
     role_competency_value = db.Column(db.Integer, nullable=False, default=-100)
     organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), nullable=False)
 
     # Relationships
-    role_cluster = db.relationship('RoleCluster', backref=db.backref('role_competency_matrices', cascade="all, delete-orphan", lazy=True))
+    organization_role = db.relationship('OrganizationRoles', backref=db.backref('competency_matrices', cascade="all, delete-orphan", lazy=True))
     competency = db.relationship('Competency', backref=db.backref('role_competency_matrices', cascade="all, delete-orphan", lazy=True))
     organization = db.relationship('Organization', backref=db.backref('role_competency_matrices', cascade="all, delete-orphan", lazy=True))
 
@@ -409,21 +474,26 @@ UserCompetencySurveyResults = UserCompetencySurveyResult
 
 class UserRoleCluster(db.Model):
     """
-    Derik's user-role mapping table
-    Links users to selected role clusters
+    User-role mapping table for assessments
+    Links users to their selected organization roles (from Phase 1)
+
+    Updated: 2025-10-30 - FK changed to reference organization_roles instead of role_cluster
+    - Supports both standard-derived roles (e.g., "End User" -> org_id 286)
+    - Supports custom roles (e.g., "Pepe Lolo" -> org_id 294)
+    - Column 'role_cluster_id' is legacy name - now references organization_roles.id
     """
     __tablename__ = 'user_role_cluster'
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True, nullable=False)
-    role_cluster_id = db.Column(db.Integer, db.ForeignKey('role_cluster.id'), primary_key=True, nullable=False)
+    role_cluster_id = db.Column(db.Integer, db.ForeignKey('organization_roles.id', ondelete='CASCADE'), primary_key=True, nullable=False)
     assessment_id = db.Column(db.Integer, db.ForeignKey('user_assessment.id', ondelete='CASCADE'))
 
     # Relationships
     user = db.relationship('User', backref=db.backref('role_clusters', cascade="all, delete-orphan", lazy=True), foreign_keys=[user_id])
-    role_cluster = db.relationship('RoleCluster', backref=db.backref('user_roles', cascade="all, delete-orphan", lazy=True))
+    organization_role = db.relationship('OrganizationRoles', backref=db.backref('user_role_clusters', cascade="all, delete-orphan", lazy=True))
 
     def __repr__(self):
-        return f"<UserRoleCluster user_id={self.user_id}, role_cluster_id={self.role_cluster_id}>"
+        return f"<UserRoleCluster user_id={self.user_id}, org_role_id={self.role_cluster_id}>"
 
 
 # REMOVED Phase 2B: UserSurveyType model (legacy - merged into UserAssessment.survey_type)
