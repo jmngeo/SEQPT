@@ -8,13 +8,13 @@ echo ========================================
 echo.
 echo Starting MAIN backend (src/backend/)...
 echo Port: 5000
-echo Database: competency_assessment
+echo Database: seqpt_database
 echo.
 
 cd /d "%~dp0src\backend"
 
 REM Set environment variables
-set DATABASE_URL=postgresql://ma0349:MA0349_2025@localhost:5432/competency_assessment
+set DATABASE_URL=postgresql://seqpt_admin:SeQpt_2025@localhost:5432/seqpt_database
 
 REM Activate virtual environment and run
 call ..\..\venv\Scripts\activate.bat

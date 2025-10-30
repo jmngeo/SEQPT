@@ -4,11 +4,11 @@ Master Data Initialization Script for SE-QPT
 Runs ALL required populate scripts in correct order with verification
 
 This script ensures:
-1. ISO Processes are populated (28 entries)
+1. ISO Processes are populated (30 entries - ISO 15288:2015)
 2. SE Competencies are populated (16 entries)
 3. Roles are populated (14 entries)
-4. Role-Process Matrix for Organization 1 is populated (392 entries - TEMPLATE!)
-5. Process-Competency Matrix is populated (448 entries - GLOBAL!)
+4. Role-Process Matrix for Organization 1 is populated (420 entries - TEMPLATE!)
+5. Process-Competency Matrix is populated (480 entries - GLOBAL!)
 6. Stored procedures are created
 7. Role-Competency Matrix for Organization 1 is calculated
 

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="comparison-header">
       <h3>Secondary Strategy Options - Pros & Cons Comparison</h3>
-      <p>Compare the three available secondary strategies to help you make an informed decision. Select your preferred strategy from the Strategy Profile Cards above.</p>
+      <p>Compare the three available secondary strategies and select your preferred option directly from the cards below.</p>
     </div>
 
     <!-- Comparison Grid -->
@@ -11,7 +11,7 @@
       <v-card
         v-for="strategyId in strategyOptions"
         :key="strategyId"
-        class="comparison-card"
+        :class="['comparison-card', { 'selected': selectedStrategy === strategyId }]"
         elevation="2"
       >
 
@@ -63,12 +63,28 @@
           </div>
         </v-card-text>
 
-        <!-- Info Footer -->
-        <v-card-actions class="card-actions info-footer">
-          <v-chip color="info" variant="outlined" size="small">
-            <v-icon start size="small">mdi-information</v-icon>
-            Select from Strategy Cards above
-          </v-chip>
+        <!-- Selection Footer -->
+        <v-card-actions class="card-actions selection-footer">
+          <v-btn
+            v-if="selectedStrategy !== strategyId"
+            @click="handleSelect(strategyId)"
+            color="primary"
+            variant="outlined"
+            block
+          >
+            <v-icon start>mdi-checkbox-marked-circle-outline</v-icon>
+            Select This Strategy
+          </v-btn>
+          <v-btn
+            v-else
+            color="success"
+            variant="flat"
+            block
+            disabled
+          >
+            <v-icon start>mdi-check-circle</v-icon>
+            Selected
+          </v-btn>
         </v-card-actions>
       </v-card>
     </div>
@@ -76,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { STRATEGY_PRO_CON } from '@/data/seTrainingStrategies'
 
 // Props
@@ -98,6 +114,11 @@ const emit = defineEmits(['select', 'update:modelValue'])
 // State
 const strategyOptions = computed(() => props.strategies)
 const selectedStrategy = ref(props.modelValue)
+
+// Watch for external changes to modelValue
+watch(() => props.modelValue, (newValue) => {
+  selectedStrategy.value = newValue
+})
 
 // Methods
 const handleSelect = (strategyId) => {
@@ -169,6 +190,13 @@ const getProCon = (strategyId) => {
   background-color: #ffffff !important;
   color: #212121 !important;
   color-scheme: light !important;
+  transition: all 0.3s ease;
+}
+
+.comparison-card.selected {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+  background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%) !important;
 }
 
 .strategy-name {
@@ -256,10 +284,11 @@ const getProCon = (strategyId) => {
   padding: 16px;
 }
 
-.info-footer {
+.selection-footer {
   justify-content: center;
   background-color: #f5f5f5;
   border-top: 1px solid #e0e0e0;
+  padding: 16px;
 }
 
 .help-alert,

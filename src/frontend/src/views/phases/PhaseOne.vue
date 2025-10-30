@@ -26,7 +26,7 @@
     <div class="phase-steps" v-if="!isEmployeeView">
       <el-steps :active="currentStep - 1" align-center finish-status="success">
         <el-step title="Maturity Assessment" description="Assess SE maturity level" />
-        <el-step title="Identify SE Roles" description="Identify SE roles" />
+        <el-step title="Roles & Responsibilities" description="Identify roles and responsibilities" />
         <el-step title="Strategy Selection" description="Select training strategy" />
         <el-step title="Review & Confirm" description="Review and complete Phase 1" />
       </el-steps>
@@ -215,8 +215,8 @@
                     <span class="count-label">{{ phase1RolesData.count }} SE {{ phase1RolesData.count === 1 ? 'Role' : 'Roles' }} Identified</span>
                   </div>
 
-                  <!-- Roles List -->
-                  <div class="roles-list-review">
+                  <!-- Roles List (if roles exist) -->
+                  <div v-if="phase1RolesData.count > 0" class="roles-list-review">
                     <ul class="roles-list">
                       <li
                         v-for="(role, index) in phase1RolesData.roles"
@@ -227,6 +227,18 @@
                         <span class="role-name">{{ getRoleName(role) }}</span>
                       </li>
                     </ul>
+                  </div>
+
+                  <!-- No Roles Note (TASK_BASED pathway) -->
+                  <div v-else class="no-roles-note">
+                    <el-alert
+                      title="No Defined SE Roles"
+                      type="info"
+                      :closable="false"
+                      show-icon
+                    >
+                      Based on your organization's maturity level, specific SE roles have not yet been defined.
+                    </el-alert>
                   </div>
 
                   <!-- Target Group Size -->
@@ -318,7 +330,7 @@
           </div>
         </el-card>
 
-        <!-- Step 2: Identify SE Roles -->
+        <!-- Step 2: Roles & Responsibilities -->
         <div v-if="currentStep === 2">
           <RoleIdentification
             v-if="maturityResults"
@@ -541,8 +553,8 @@
                     <span class="count-label">{{ phase1RolesData.count }} SE {{ phase1RolesData.count === 1 ? 'Role' : 'Roles' }} Identified</span>
                   </div>
 
-                  <!-- Roles List -->
-                  <div class="roles-list-review">
+                  <!-- Roles List (if roles exist) -->
+                  <div v-if="phase1RolesData.count > 0" class="roles-list-review">
                     <ul class="roles-list">
                       <li
                         v-for="(role, index) in phase1RolesData.roles"
@@ -553,6 +565,18 @@
                         <span class="role-name">{{ getRoleName(role) }}</span>
                       </li>
                     </ul>
+                  </div>
+
+                  <!-- No Roles Note (TASK_BASED pathway) -->
+                  <div v-else class="no-roles-note">
+                    <el-alert
+                      title="No Defined SE Roles"
+                      type="info"
+                      :closable="false"
+                      show-icon
+                    >
+                      Based on your organization's maturity level, specific SE roles have not yet been defined.
+                    </el-alert>
                   </div>
 
                   <!-- Target Group Size -->
@@ -2939,6 +2963,11 @@ const determineCurrentStep = async () => {
 
 .roles-list-review {
   padding: 8px 0;
+}
+
+.no-roles-note {
+  padding: 12px 0;
+  margin: 8px 0;
 }
 
 .roles-list {

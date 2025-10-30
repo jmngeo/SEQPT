@@ -207,6 +207,28 @@ export const rolesApi = {
       console.error('Failed to suggest role from processes:', error);
       throw error;
     }
+  },
+
+  /**
+   * Initialize role-process matrix for newly saved roles
+   * Called after roles are saved to organization_roles table
+   * @param {Number} organizationId - Organization ID
+   * @param {Array} roles - Array of saved role objects with IDs
+   * @param {Boolean} smartMerge - If true, only initialize matrix for new roles (preserves existing)
+   * @returns {Promise} Initialization result
+   */
+  initializeMatrix: async (organizationId, roles, smartMerge = false) => {
+    try {
+      const response = await axiosInstance.post('/api/phase1/roles/initialize-matrix', {
+        organization_id: organizationId,
+        roles,
+        smart_merge: smartMerge
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to initialize role-process matrix:', error);
+      throw error;
+    }
   }
 };
 

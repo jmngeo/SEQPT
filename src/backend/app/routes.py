@@ -21,6 +21,7 @@ from models import (
     Organization,
     CompetencyAssessment,
     RoleCluster,
+    OrganizationRoles,
     IsoProcesses,
     Competency,
     CompetencyIndicator,
@@ -513,12 +514,12 @@ def _initialize_organization_matrices(new_org_id):
     from sqlalchemy import text
 
     try:
-        # 1. Copy role-process matrix from org 1 (always succeeds - we have 392 entries)
+        # 1. Copy role-process matrix from org 1 (always succeeds - we have 420 entries: 14 roles × 30 processes)
         db.session.execute(
             text('CALL insert_new_org_default_role_process_matrix(:org_id);'),
             {'org_id': new_org_id}
         )
-        current_app.logger.info(f"[OK] Copied 392 role-process matrix entries for org {new_org_id}")
+        current_app.logger.info(f"[OK] Copied 420 role-process matrix entries for org {new_org_id}")
 
         # 2. CALCULATE role-competency matrix (don't copy - always calculate fresh!)
         # This ensures correct values even if org 1 has bad data
@@ -624,9 +625,15 @@ def register_admin():
         db.session.add(organization)
         db.session.flush()  # Get organization ID
 
-        # Initialize organization with default matrices
-        _initialize_organization_matrices(organization.id)
-        current_app.logger.info(f"[ADMIN REGISTRATION] Initialized default matrices for org {organization.id}")
+        # MATRICES NO LONGER AUTO-INITIALIZED AT REGISTRATION
+        # Matrix initialization now happens in Phase 1 Task 2 (Role Selection)
+        # - User defines organization roles (cluster-mapped or custom)
+        # - Matrix is auto-created with values from org 1 for standard roles
+        # - Custom roles initialized with zeros
+        # - User edits and validates with RACI rules before proceeding
+        # _initialize_organization_matrices(organization.id)
+        # current_app.logger.info(f"[ADMIN REGISTRATION] Initialized default matrices for org {organization.id}")
+        current_app.logger.info(f"[ADMIN REGISTRATION] Organization {organization.id} created - matrices will be initialized in Phase 1 Task 2")
 
         # Create admin user
         admin_user = User(
@@ -1477,21 +1484,20 @@ def save_maturity_assessment():
 
 @main_bp.route('/api/phase1/roles/<int:org_id>/latest', methods=['GET'])
 def get_latest_roles(org_id):
-    """Get latest role identification for an organization"""
-    try:
-        from models import PhaseQuestionnaireResponse, Organization
+    """
+    Get latest role identification for an organization.
+    Returns roles directly from organization_roles table with database IDs.
 
+    Refactored: 2025-10-30 - Now uses ORM instead of raw SQL
+    """
+    try:
         # Verify organization exists
         org = Organization.query.get(org_id)
         if not org:
             return jsonify({'error': 'Organization not found'}), 404
 
-        # Get latest role identification
-        roles = PhaseQuestionnaireResponse.query.filter_by(
-            organization_id=org_id,
-            questionnaire_type='roles',
-            phase=1
-        ).order_by(PhaseQuestionnaireResponse.completed_at.desc()).first()
+        # Fetch roles using ORM (with eager loading of standard_cluster relationship)
+        roles = OrganizationRoles.query.filter_by(organization_id=org_id).order_by(OrganizationRoles.id).all()
 
         if not roles:
             return jsonify({
@@ -1500,16 +1506,26 @@ def get_latest_roles(org_id):
                 'count': 0
             }), 200
 
-        # Parse the response
-        response_data = roles.get_responses()
-        roles_list = response_data.get('roles', []) if isinstance(response_data, dict) else []
+        # Use built-in to_dict() method and add has_competencies flag
+        roles_list = []
+        for role in roles:
+            role_dict = role.to_dict()
+
+            # Check if role has any non-zero competencies
+            # Query role_competency_matrix for this role
+            has_competencies = db.session.query(RoleCompetencyMatrix).filter(
+                RoleCompetencyMatrix.organization_id == org_id,
+                RoleCompetencyMatrix.role_cluster_id == role.id,
+                RoleCompetencyMatrix.role_competency_value > 0
+            ).count() > 0
+
+            role_dict['has_competencies'] = has_competencies
+            roles_list.append(role_dict)
 
         return jsonify({
             'success': True,
             'data': roles_list,
-            'count': len(roles_list),
-            'maturityId': response_data.get('maturityId') if isinstance(response_data, dict) else None,
-            'completed_at': roles.completed_at.isoformat() if roles.completed_at else None
+            'count': len(roles_list)
         }), 200
 
     except Exception as e:
@@ -1519,7 +1535,19 @@ def get_latest_roles(org_id):
 
 @main_bp.route('/api/phase1/roles/save', methods=['POST'])
 def save_roles():
-    """Save identified SE roles for an organization"""
+    """
+    Save identified SE roles for an organization to organization_roles table.
+    Each role can be:
+    - STANDARD: Maps to one of 14 standard role clusters
+    - CUSTOM: User-defined role not mapped to any cluster
+
+    Smart-merge feature (2025-10-30):
+    - Detects pathway changes (Task 1 retake affecting seProcesses threshold)
+    - Preserves matrix data for unchanged roles
+    - Only resets matrix when pathway changes or user explicitly changes roles
+
+    Refactored: 2025-10-30 - Now uses ORM instead of raw SQL
+    """
     try:
         from models import PhaseQuestionnaireResponse
         from flask_jwt_extended import verify_jwt_in_request
@@ -1527,35 +1555,12 @@ def save_roles():
         data = request.get_json()
 
         org_id = data.get('org_id')
+        maturity_id = data.get('maturity_id')  # NEW: needed to detect pathway changes
         roles = data.get('roles', [])
         identification_method = data.get('identification_method', 'STANDARD')
 
         if not org_id:
             return jsonify({'error': 'org_id is required'}), 400
-
-        # VALIDATION: Check for duplicate standardRoleId values
-        seen_role_ids = set()
-        deduplicated_roles = []
-        duplicates_found = []
-
-        for role in roles:
-            role_id = role.get('standardRoleId')
-            if role_id is None:
-                continue  # Skip roles without standardRoleId
-
-            if role_id in seen_role_ids:
-                duplicates_found.append(f"{role.get('standardRoleName', 'Unknown')} (ID: {role_id})")
-                current_app.logger.warning(f"[DUPLICATE DETECTED] Role ID {role_id} appears multiple times in submission for org {org_id}")
-            else:
-                seen_role_ids.add(role_id)
-                deduplicated_roles.append(role)
-
-        # Log if duplicates were removed
-        if duplicates_found:
-            current_app.logger.info(f"[DEDUPLICATION] Removed {len(duplicates_found)} duplicate role(s) for org {org_id}: {', '.join(duplicates_found)}")
-
-        # Use deduplicated roles
-        roles = deduplicated_roles
 
         # Get user ID from JWT if available
         user_id = 1  # Default fallback
@@ -1567,7 +1572,193 @@ def save_roles():
         except Exception:
             pass  # Use default user_id
 
-        # Create new role identification
+        # SMART-MERGE STEP 1: Detect pathway changes (Task 1 retake)
+        MATURITY_THRESHOLD = 3  # "Defined and Established"
+        pathway_changed = False
+        old_pathway = None
+        new_pathway = None
+
+        if maturity_id:
+            # Get the new maturity data
+            new_maturity = PhaseQuestionnaireResponse.query.filter_by(
+                id=maturity_id,
+                organization_id=org_id,
+                questionnaire_type='maturity'
+            ).first()
+
+            if new_maturity:
+                new_results = new_maturity.get_computed_scores()
+                new_se_processes = new_results.get('strategyInputs', {}).get('seProcessesValue', 0)
+                new_pathway = 'STANDARD' if new_se_processes >= MATURITY_THRESHOLD else 'TASK_BASED'
+
+                # Get the previous maturity (if exists)
+                previous_maturity = PhaseQuestionnaireResponse.query.filter(
+                    PhaseQuestionnaireResponse.organization_id == org_id,
+                    PhaseQuestionnaireResponse.questionnaire_type == 'maturity',
+                    PhaseQuestionnaireResponse.id != maturity_id
+                ).order_by(PhaseQuestionnaireResponse.completed_at.desc()).first()
+
+                if previous_maturity:
+                    old_results = previous_maturity.get_computed_scores()
+                    old_se_processes = old_results.get('strategyInputs', {}).get('seProcessesValue', 0)
+                    old_pathway = 'STANDARD' if old_se_processes >= MATURITY_THRESHOLD else 'TASK_BASED'
+
+                    # Pathway changed if crossing the threshold
+                    if old_pathway != new_pathway:
+                        pathway_changed = True
+                        current_app.logger.warning(
+                            f"[ROLE SAVE] Pathway changed for org {org_id}: {old_pathway} -> {new_pathway} "
+                            f"(seProcesses: {old_se_processes} -> {new_se_processes})"
+                        )
+
+        # SMART-MERGE STEP 2: Check if organization already has roles using ORM
+        existing_roles_objs = OrganizationRoles.query.filter_by(organization_id=org_id).all()
+
+        # Convert to simple dicts for comparison
+        existing_roles = [{
+            'id': role.id,
+            'name': role.role_name,
+            'cluster': role.standard_role_cluster_id,
+            'method': role.identification_method
+        } for role in existing_roles_objs]
+
+        # SMART-MERGE STEP 3: Compare submitted roles with existing roles to detect changes
+        submitted_role_signatures = set()
+        submitted_role_map = {}  # sig -> role data
+        for role in roles:
+            sig = f"{role.get('orgRoleName')}|{role.get('standardRoleId')}|{role.get('identificationMethod', 'STANDARD')}"
+            submitted_role_signatures.add(sig)
+            submitted_role_map[sig] = role
+
+        existing_role_signatures = set()
+        existing_role_map = {}  # sig -> role id
+        for role in existing_roles:
+            sig = f"{role['name']}|{role['cluster']}|{role['method']}"
+            existing_role_signatures.add(sig)
+            existing_role_map[sig] = role['id']
+
+        is_new = len(existing_roles) == 0
+        roles_changed = submitted_role_signatures != existing_role_signatures if not is_new else True
+
+        # SMART-MERGE STEP 4: Build detailed change info
+        unchanged_roles = submitted_role_signatures & existing_role_signatures
+        added_roles = submitted_role_signatures - existing_role_signatures
+        removed_roles = existing_role_signatures - submitted_role_signatures
+
+        current_app.logger.info(
+            f"[ROLE SAVE] Change analysis for org {org_id}: "
+            f"unchanged={len(unchanged_roles)}, added={len(added_roles)}, removed={len(removed_roles)}, "
+            f"pathway_changed={pathway_changed}"
+        )
+
+        if not is_new and not roles_changed:
+            # CASE 1: Roles haven't changed - return existing roles (preserves matrix)
+            current_app.logger.info(f"[ROLE SAVE] No role changes detected for org {org_id} - preserving matrix")
+
+            # Use to_dict() for consistent output
+            saved_roles = [role.to_dict() for role in existing_roles_objs]
+
+            return jsonify({
+                'success': True,
+                'message': f'Using existing {len(saved_roles)} roles (no changes detected)',
+                'roles': saved_roles,
+                'count': len(saved_roles),
+                'is_update': True,
+                'roles_changed': False,
+                'pathway_changed': False,
+                'smart_merge_enabled': False
+            }), 200
+
+        elif not is_new and roles_changed:
+            # CASE 2: Roles have changed
+            if pathway_changed:
+                # CASE 2a: Pathway changed (Task 1 retake) - FULL RESET
+                current_app.logger.warning(
+                    f"[ROLE SAVE] Pathway changed ({old_pathway} -> {new_pathway}) - FULL MATRIX RESET"
+                )
+                # Delete old roles using ORM (CASCADE will delete matrix)
+                OrganizationRoles.query.filter_by(organization_id=org_id).delete()
+                current_app.logger.warning(f"[ROLE SAVE] Deleted old roles and matrix (pathway change)")
+                is_updating = True
+                smart_merge_enabled = False
+
+            else:
+                # CASE 2b: Only roles changed (no pathway change) - SMART MERGE
+                current_app.logger.info(
+                    f"[ROLE SAVE] Roles changed but pathway stable - SMART MERGE: "
+                    f"keep {len(unchanged_roles)}, add {len(added_roles)}, remove {len(removed_roles)}"
+                )
+
+                # Smart merge: Only delete removed roles
+                if removed_roles:
+                    removed_role_ids = [existing_role_map[sig] for sig in removed_roles]
+                    OrganizationRoles.query.filter(
+                        OrganizationRoles.organization_id == org_id,
+                        OrganizationRoles.id.in_(removed_role_ids)
+                    ).delete(synchronize_session=False)
+                    current_app.logger.info(f"[ROLE SAVE] Deleted {len(removed_roles)} removed roles (matrix CASCADE)")
+
+                is_updating = True
+                smart_merge_enabled = True
+
+        else:
+            # CASE 3: New organization - first time setup
+            current_app.logger.info(f"[ROLE SAVE] Creating new roles for org {org_id} (matrix will be initialized)")
+            is_updating = False
+            smart_merge_enabled = False
+
+        # Insert/update roles into organization_roles table using ORM
+        saved_roles = []
+        roles_to_add = []  # Track which roles we're adding (for matrix initialization)
+
+        for role in roles:
+            # Extract role data
+            role_name = role.get('orgRoleName')
+            role_description = role.get('standard_role_description')
+            standard_role_cluster_id = role.get('standardRoleId')  # NULL for custom roles
+            role_identification_method = role.get('identificationMethod', 'STANDARD')
+            participating = role.get('participatingInTraining', True)
+
+            if not role_name:
+                current_app.logger.warning(f"[ROLE SAVE] Skipping role with empty name for org {org_id}")
+                continue
+
+            # Build signature for this role
+            sig = f"{role_name}|{standard_role_cluster_id}|{role_identification_method}"
+
+            # SMART MERGE: Check if this role already exists (unchanged)
+            if smart_merge_enabled and sig in unchanged_roles:
+                # This role hasn't changed - reuse existing ID and preserve its matrix data
+                existing_id = existing_role_map[sig]
+                existing_obj = OrganizationRoles.query.get(existing_id)
+                saved_roles.append(existing_obj.to_dict())
+                current_app.logger.info(
+                    f"[ROLE SAVE] Keeping unchanged role '{role_name}' (ID: {existing_id}) - matrix preserved"
+                )
+            else:
+                # This is a new role (or full reset) - create it
+                new_role = OrganizationRoles(
+                    organization_id=org_id,
+                    role_name=role_name,
+                    role_description=role_description,
+                    standard_role_cluster_id=standard_role_cluster_id,
+                    identification_method=role_identification_method,
+                    participating_in_training=participating
+                )
+                db.session.add(new_role)
+                db.session.flush()  # Get the ID without committing
+
+                # Use to_dict() for consistent output
+                saved_role_dict = new_role.to_dict()
+                saved_roles.append(saved_role_dict)
+                roles_to_add.append(saved_role_dict)  # Track for matrix initialization
+
+                current_app.logger.info(
+                    f"[ROLE SAVE] {'Added' if smart_merge_enabled else 'Created'} role '{role_name}' (ID: {new_role.id}) "
+                    f"for org {org_id} (cluster: {standard_role_cluster_id}, method: {role_identification_method})"
+                )
+
+        # Also save to PhaseQuestionnaireResponse for backward compatibility
         role_data = PhaseQuestionnaireResponse(
             organization_id=org_id,
             user_id=user_id,
@@ -1575,25 +1766,224 @@ def save_roles():
             phase=1
         )
         role_data.set_responses({
-            'roles': roles,
+            'roles': saved_roles,
             'identification_method': identification_method
         })
-
         db.session.add(role_data)
+
         db.session.commit()
+
+        # Build response message
+        if smart_merge_enabled:
+            message = (
+                f"Smart merge: preserved {len(unchanged_roles)}, "
+                f"added {len(added_roles)}, removed {len(removed_roles)} roles"
+            )
+        elif pathway_changed:
+            message = f"Pathway changed - rebuilt {len(saved_roles)} roles (matrix reset)"
+        else:
+            message = f'{"Updated" if is_updating else "Created"} {len(saved_roles)} roles successfully'
 
         return jsonify({
             'success': True,
             'id': role_data.id,
-            'message': 'Roles saved successfully',
-            'roles': roles,
-            'count': len(roles)
+            'message': message,
+            'roles': saved_roles,
+            'count': len(saved_roles),
+            'is_update': is_updating,
+            'roles_changed': roles_changed,
+            'pathway_changed': pathway_changed,
+            'smart_merge_enabled': smart_merge_enabled,
+            'roles_to_add': roles_to_add,  # Only new roles that need matrix initialization
+            'change_summary': {
+                'unchanged': len(unchanged_roles),
+                'added': len(added_roles),
+                'removed': len(removed_roles)
+            }
         }), 201
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error saving roles: {str(e)}")
-        return jsonify({'error': 'Failed to save roles'}), 500
+        current_app.logger.error(f"[ROLE SAVE ERROR] {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'error': f'Failed to save roles: {str(e)}'}), 500
+
+
+@main_bp.route('/api/phase1/roles/initialize-matrix', methods=['POST'])
+def initialize_role_process_matrix():
+    """
+    Initialize role-process matrix for newly saved roles.
+
+    For STANDARD roles (mapped to clusters):
+        - Copy 30 process values from organization 1's reference matrix
+
+    For CUSTOM roles (not mapped to clusters):
+        - Initialize all 30 processes with value 0 (user must define)
+
+    Smart-merge feature (2025-10-30):
+        - If smart_merge=True: Only initialize matrix for new roles (preserves existing)
+        - If smart_merge=False: Full reset (delete all and rebuild)
+
+    This endpoint should be called after roles are saved to organization_roles.
+
+    Refactored: 2025-10-30 - Now uses ORM instead of raw SQL
+    """
+    try:
+        data = request.get_json()
+        org_id = data.get('organization_id')
+        roles = data.get('roles', [])  # Roles with database IDs
+        smart_merge = data.get('smart_merge', False)  # NEW: smart merge flag
+
+        if not org_id:
+            return jsonify({'error': 'organization_id is required'}), 400
+
+        if not roles:
+            return jsonify({'error': 'roles array is required'}), 400
+
+        # Smart merge: Only delete matrix for removed roles (already done by CASCADE)
+        # Full reset: Delete all matrix entries
+        if not smart_merge:
+            # Full reset - delete existing matrix entries for this organization using ORM
+            RoleProcessMatrix.query.filter_by(organization_id=org_id).delete()
+            current_app.logger.info(f"[MATRIX INIT] Full reset - deleted existing matrix for org {org_id}")
+        else:
+            current_app.logger.info(f"[MATRIX INIT] Smart merge - preserving matrix for unchanged roles")
+
+        # Get all process IDs using ORM
+        all_processes = IsoProcesses.query.order_by(IsoProcesses.id).all()
+        all_process_ids = [p.id for p in all_processes]
+
+        if len(all_process_ids) != 30:
+            current_app.logger.warning(f"[MATRIX INIT] Expected 30 processes, found {len(all_process_ids)}")
+
+        entries_created = 0
+        roles_skipped = 0
+
+        for role in roles:
+            role_id = role.get('id')
+            role_name = role.get('orgRoleName')
+            standard_cluster_id = role.get('standardRoleId')
+            identification_method = role.get('identificationMethod', 'STANDARD')
+
+            if not role_id:
+                current_app.logger.warning(f"[MATRIX INIT] Skipping role without ID: {role_name}")
+                continue
+
+            # SMART MERGE: Skip roles that already have matrix data (unchanged roles)
+            if smart_merge:
+                existing_matrix_count = RoleProcessMatrix.query.filter_by(
+                    organization_id=org_id,
+                    role_cluster_id=role_id
+                ).count()
+
+                if existing_matrix_count > 0:
+                    roles_skipped += 1
+                    current_app.logger.info(
+                        f"[MATRIX INIT] Skipping role '{role_name}' (ID: {role_id}) - "
+                        f"matrix already exists ({existing_matrix_count} entries)"
+                    )
+                    continue
+
+            if identification_method == 'STANDARD' and standard_cluster_id:
+                # Find reference role in organization 1 (template org) with same cluster ID
+                # NOTE: Org 1 is the template organization with all 14 standard roles and baseline matrix
+                reference_role = OrganizationRoles.query.filter_by(
+                    organization_id=1,
+                    standard_role_cluster_id=standard_cluster_id
+                ).first()
+
+                if reference_role:
+                    # Get reference matrix entries using ORM
+                    reference_entries = RoleProcessMatrix.query.filter_by(
+                        organization_id=1,
+                        role_cluster_id=reference_role.id
+                    ).all()
+
+                    reference_values = {entry.iso_process_id: entry.role_process_value for entry in reference_entries}
+                else:
+                    current_app.logger.warning(
+                        f"[MATRIX INIT] No reference role found for cluster {standard_cluster_id}, using zeros"
+                    )
+                    reference_values = {pid: 0 for pid in all_process_ids}
+
+                # Insert matrix entries for this role using ORM
+                for process_id in all_process_ids:
+                    value = reference_values.get(process_id, 0)
+                    new_entry = RoleProcessMatrix(
+                        organization_id=org_id,
+                        role_cluster_id=role_id,
+                        iso_process_id=process_id,
+                        role_process_value=value
+                    )
+                    db.session.add(new_entry)
+                    entries_created += 1
+
+                current_app.logger.info(
+                    f"[MATRIX INIT] Copied {len(reference_values)} values for STANDARD role "
+                    f"'{role_name}' (cluster {standard_cluster_id})"
+                )
+
+            elif identification_method == 'CUSTOM':
+                # Initialize with zeros for custom roles using ORM
+                for process_id in all_process_ids:
+                    new_entry = RoleProcessMatrix(
+                        organization_id=org_id,
+                        role_cluster_id=role_id,
+                        iso_process_id=process_id,
+                        role_process_value=0
+                    )
+                    db.session.add(new_entry)
+                    entries_created += 1
+
+                current_app.logger.info(
+                    f"[MATRIX INIT] Initialized {len(all_process_ids)} zeros for CUSTOM role '{role_name}'"
+                )
+            else:
+                current_app.logger.warning(
+                    f"[MATRIX INIT] Unknown identification method '{identification_method}' for role '{role_name}'"
+                )
+
+        db.session.commit()
+
+        # CRITICAL: Calculate role-competency matrix from role-process × process-competency
+        # This is required for Phase 2 competency assessment to work!
+        try:
+            from sqlalchemy import text
+            db.session.execute(
+                text('CALL update_role_competency_matrix(:org_id);'),
+                {'org_id': org_id}
+            )
+            db.session.commit()
+            current_app.logger.info(f"[MATRIX INIT] Calculated role-competency matrix for org {org_id}")
+        except Exception as calc_error:
+            current_app.logger.error(f"[MATRIX INIT] Failed to calculate role-competency matrix: {calc_error}")
+            # Don't fail the whole operation, but log the error
+            import traceback
+            current_app.logger.error(traceback.format_exc())
+
+        # Build response message
+        if smart_merge:
+            message = f'Smart merge: initialized matrix for {len(roles) - roles_skipped} new roles, preserved {roles_skipped} unchanged roles'
+        else:
+            message = f'Initialized role-process matrix for {len(roles)} roles'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'entries_created': entries_created,
+            'roles_processed': len(roles),
+            'roles_skipped': roles_skipped,
+            'smart_merge': smart_merge,
+            'processes_per_role': len(all_process_ids)
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[MATRIX INIT ERROR] {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'error': f'Failed to initialize matrix: {str(e)}'}), 500
 
 
 @main_bp.route('/findProcesses', methods=['POST'])
@@ -2204,14 +2594,82 @@ def save_strategies():
 # =============================================================================
 
 @main_bp.route('/roles', methods=['GET'])
+@jwt_required()
 def get_role_clusters():
-    """Get all 14 SE role clusters for competency assessment"""
+    """
+    Get organization-specific roles for competency assessment.
+
+    Fixed: 2025-10-30 - Now returns user's organization roles instead of generic 14 clusters.
+    This fixes:
+    - "No competencies found" error in Phase 2 (role IDs now match role_competency_matrix)
+    - Auto-selection bug when roles share same cluster (each org role now has unique ID)
+    """
+    print("[GET ROLES] Endpoint called")
     try:
-        roles = RoleCluster.query.all()
-        return jsonify([r.to_dict() for r in roles]), 200
+        # Get authenticated user's organization_id
+        print("[GET ROLES] Getting JWT identity...")
+        user_id = int(get_jwt_identity())
+        print(f"[GET ROLES] JWT user_id: {user_id}")
+
+        user = User.query.get(user_id)
+        print(f"[GET ROLES] Found user: {user.username if user else 'None'}")
+
+        if not user:
+            print("[GET ROLES ERROR] User not found")
+            return jsonify({'error': 'User not found'}), 404
+
+        organization_id = user.organization_id
+        print(f"[GET ROLES] Organization ID: {organization_id}")
+
+        if not organization_id:
+            print("[GET ROLES ERROR] User has no organization")
+            return jsonify({'error': 'User has no organization'}), 400
+
+        # Return organization's actual roles (not generic clusters)
+        roles = OrganizationRoles.query.filter_by(organization_id=organization_id).order_by(OrganizationRoles.id).all()
+        print(f"[GET ROLES] Found {len(roles)} roles")
+
+        # Use to_dict() for consistent output
+        roles_list = [role.to_dict() for role in roles]
+
+        current_app.logger.info(f"[GET ROLES] Returned {len(roles_list)} organization-specific roles for org {organization_id}")
+        print(f"[GET ROLES] Returning {len(roles_list)} organization-specific roles for org {organization_id}")
+
+        return jsonify(roles_list), 200
+
     except Exception as e:
-        current_app.logger.error(f"Error fetching roles: {str(e)}")
-        return jsonify({'error': 'Failed to fetch roles'}), 500
+        current_app.logger.error(f"[GET ROLES ERROR] {str(e)}")
+        print(f"[GET ROLES ERROR] Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to fetch roles', 'details': str(e)}), 500
+
+
+@main_bp.route('/organization_roles/<int:org_id>', methods=['GET'])
+def get_organization_roles(org_id):
+    """
+    Get roles for a specific organization from organization_roles table.
+
+    Refactored: 2025-10-30 - Now uses ORM instead of raw SQL
+    """
+    try:
+        # Verify organization exists
+        org = Organization.query.get(org_id)
+        if not org:
+            return jsonify({'error': 'Organization not found'}), 404
+
+        # Fetch roles using ORM (relationships handle the JOIN automatically)
+        roles = OrganizationRoles.query.filter_by(organization_id=org_id).order_by(OrganizationRoles.id).all()
+
+        # Use to_dict() for consistent output
+        roles_list = [role.to_dict() for role in roles]
+
+        current_app.logger.info(f"[GET ORG ROLES] Fetched {len(roles_list)} roles for organization {org_id}")
+        return jsonify(roles_list), 200
+
+    except Exception as e:
+        current_app.logger.error(f"[GET ORG ROLES] Error: {str(e)}")
+        return jsonify({'error': 'Failed to get organization roles'}), 500
 
 
 @main_bp.route('/roles_and_processes', methods=['GET'])
@@ -2288,11 +2746,15 @@ def bulk_update_role_process_matrix():
 
         # Recalculate role-competency matrix for this organization
         # As per MATRIX_CALCULATION_PATTERN.md
+        print(f"[ROLE-PROCESS MATRIX] Calling stored procedure to recalculate role-competency matrix for org {organization_id}")
+        current_app.logger.info(f"[ROLE-PROCESS MATRIX] Calling stored procedure to recalculate role-competency matrix for org {organization_id}")
         db.session.execute(
             text('CALL update_role_competency_matrix(:org_id);'),
             {'org_id': organization_id}
         )
         db.session.commit()
+        print(f"[ROLE-PROCESS MATRIX] Successfully recalculated role-competency matrix for org {organization_id}")
+        current_app.logger.info(f"[ROLE-PROCESS MATRIX] Successfully recalculated role-competency matrix for org {organization_id}")
 
         return jsonify({
             'message': 'Role-process matrix updated successfully',
@@ -2455,16 +2917,26 @@ def get_required_competencies_for_roles():
             return jsonify({"error": "role_ids and organization_id are required"}), 400
 
         try:
+            # Query with JOIN to get full competency details
             competencies = (
                 db.session.query(
                     RoleCompetencyMatrix.competency_id,
+                    Competency.competency_name,
+                    Competency.description,
+                    Competency.competency_area,
                     func.max(RoleCompetencyMatrix.role_competency_value).label('max_value')
                 )
+                .join(Competency, RoleCompetencyMatrix.competency_id == Competency.id)
                 .filter(
                     RoleCompetencyMatrix.role_cluster_id.in_(role_ids),
                     RoleCompetencyMatrix.organization_id == organization_id
                 )
-                .group_by(RoleCompetencyMatrix.competency_id)
+                .group_by(
+                    RoleCompetencyMatrix.competency_id,
+                    Competency.competency_name,
+                    Competency.description,
+                    Competency.competency_area
+                )
                 .having(func.max(RoleCompetencyMatrix.role_competency_value) > 0)  # Filter out zero-level competencies
                 .order_by(RoleCompetencyMatrix.competency_id)
                 .all()
@@ -2473,6 +2945,9 @@ def get_required_competencies_for_roles():
             competencies_data = [
                 {
                     'competency_id': competency.competency_id,
+                    'competency_name': competency.competency_name,
+                    'description': competency.description,
+                    'category': competency.competency_area,  # Map to 'category' for frontend compatibility
                     'max_value': competency.max_value
                 }
                 for competency in competencies
@@ -2692,13 +3167,18 @@ def submit_assessment(assessment_id):
         UserRoleCluster.query.filter_by(assessment_id=assessment_id).delete()
 
         # Insert new roles with assessment_id
+        # After migration 003: role_cluster_id now references organization_roles.id directly
+        # Supports both standard-derived AND custom roles
         for role in selected_roles:
+            org_role_id = role.get('role_id') or role.get('id')
+
             role_entry = UserRoleCluster(
                 user_id=assessment.user_id,
-                role_cluster_id=role.get('role_id') or role.get('id'),
+                role_cluster_id=org_role_id,  # Now directly uses organization_roles.id
                 assessment_id=assessment_id
             )
             db.session.add(role_entry)
+            print(f"[submit_assessment] Added role {org_role_id} for assessment {assessment_id}")
 
         # Delete existing survey results for this assessment
         UserCompetencySurveyResults.query.filter_by(

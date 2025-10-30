@@ -48,6 +48,23 @@
         </div>
       </div>
 
+      <!-- Assessment Scope Clarification -->
+      <div class="assessment-scope-note">
+        <div class="scope-header">
+          <strong>About This Assessment</strong>
+        </div>
+        <p>
+          This maturity assessment evaluates your organization based on <strong>4 crucial fields of action</strong> specifically relevant for
+          <strong>Systems Engineering Qualification Planning</strong>: Rollout Scope, SE Processes & Roles, SE Mindset, and Knowledge Base.
+        </p>
+        <p>
+          <strong>Important:</strong> There are many other fields of action and dimensions for assessing organizational maturity that are not included
+          in this assessment. Therefore, this result is tailored specifically for SE qualification planning purposes and
+          <strong>does not represent the overall maturity level of your organization</strong>. It reflects maturity only in the context of
+          the specific fields of action measured here.
+        </p>
+      </div>
+
       <!-- Action Buttons -->
       <div class="action-buttons">
         <el-button size="large" @click="emit('back-to-assessment')">
@@ -58,7 +75,7 @@
           size="large"
           @click="proceedToNextTask"
         >
-          Continue to Role Identification
+          Continue to Roles & Responsibilities
         </el-button>
       </div>
     </el-card>
@@ -201,6 +218,42 @@ const proceedToNextTask = () => {
   color: #67C23A;
 }
 
+/* Assessment Scope Clarification */
+.assessment-scope-note {
+  margin: 24px 0;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #fff8e1 0%, #fffbf0 100%);
+  border-left: 4px solid #ff9800;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+}
+
+.scope-header {
+  margin-bottom: 12px;
+  color: #e65100;
+  font-size: 16px;
+}
+
+.scope-header strong {
+  font-weight: 600;
+}
+
+.assessment-scope-note p {
+  margin: 0 0 12px 0;
+  color: #5d4037;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.assessment-scope-note p:last-child {
+  margin-bottom: 0;
+}
+
+.assessment-scope-note strong {
+  color: #d84315;
+  font-weight: 600;
+}
+
 /* Action Buttons */
 .action-buttons {
   display: flex;
@@ -257,6 +310,18 @@ const proceedToNextTask = () => {
 
   .maturity-description {
     font-size: 14px;
+  }
+
+  .assessment-scope-note {
+    padding: 16px 18px;
+  }
+
+  .scope-header {
+    font-size: 15px;
+  }
+
+  .assessment-scope-note p {
+    font-size: 13px;
   }
 
   .action-buttons {

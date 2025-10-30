@@ -47,7 +47,7 @@
         >
           <div class="selection-info-content">
             <p>
-              Select strategies that best matches your organization's current focus. The system has <strong>recommended and selected strategies</strong> based on your maturity assessment.
+              The system has <strong>recommended and pre-selected strategies</strong> based on your maturity assessment. You can modify the selection or explore additional strategies below.
             </p>
             <p style="margin-top: 12px;">
               <strong>Need help understanding why these strategies were recommended?</strong> Scroll down to the <em>"Our Recommendation Rationale"</em> section below to learn the reasoning behind our strategy selection and how it aligns with your organization's maturity profile.
@@ -55,18 +55,80 @@
           </div>
         </el-alert>
 
-        <!-- Strategy Cards Grid -->
-        <div class="strategies-grid">
-          <StrategyCard
-            v-for="strategy in allStrategies"
-            :key="strategy.id"
-            :strategy="strategy"
-            :is-selected="isStrategySelected(strategy.id)"
-            :is-recommended="isStrategyRecommended(strategy.id)"
-            :disabled="false"
-            :show-view-details="false"
-            @toggle="handleStrategyToggle"
-          />
+        <!-- Recommended Strategies Section -->
+        <div class="recommended-section">
+          <div class="section-header">
+            <h4 class="section-title">
+              <el-icon color="#4CAF50"><CircleCheck /></el-icon>
+              Recommended Strategies
+            </h4>
+            <p class="section-subtitle">
+              These strategies are tailored to your organization's current maturity level and have been pre-selected for you.
+            </p>
+          </div>
+
+          <div class="strategies-grid">
+            <StrategyCard
+              v-for="strategy in recommendedStrategyList"
+              :key="strategy.id"
+              :strategy="strategy"
+              :is-selected="isStrategySelected(strategy.id)"
+              :is-recommended="true"
+              :disabled="false"
+              :show-view-details="false"
+              @toggle="handleStrategyToggle"
+            />
+          </div>
+        </div>
+
+        <!-- Additional Strategies Section -->
+        <div v-if="additionalStrategyList.length > 0" class="additional-section">
+          <div class="section-header">
+            <h4 class="section-title">
+              <el-icon color="#757575"><MoreFilled /></el-icon>
+              Additional Strategies
+            </h4>
+            <p v-if="!showAllStrategies" class="section-subtitle">
+              The recommended strategies above are best suited for your maturity level. Additional strategies are available but may not align with your current organizational context.
+            </p>
+            <p v-else class="section-subtitle">
+              All strategies are now available for selection. Consider the recommended strategies above as they are best suited for your maturity level.
+            </p>
+          </div>
+
+          <!-- Enable Additional Strategies Button -->
+          <div v-if="!showAllStrategies" class="enable-additional-container">
+            <el-button
+              type="default"
+              size="large"
+              @click="showAllStrategies = true"
+              plain
+            >
+              <el-icon><Unlock /></el-icon>
+              Show All Strategies
+            </el-button>
+            <p class="enable-hint">
+              Click to view and select from all available training strategies
+            </p>
+          </div>
+
+          <!-- Additional Strategy Cards (disabled unless showAllStrategies is true) -->
+          <div v-else class="strategies-grid">
+            <div
+              v-for="strategy in additionalStrategyList"
+              :key="strategy.id"
+              :id="`strategy-card-${strategy.id}`"
+            >
+              <StrategyCard
+                :strategy="strategy"
+                :is-selected="isStrategySelected(strategy.id)"
+                :is-recommended="false"
+                :disabled="false"
+                :show-view-details="false"
+                @toggle="handleStrategyToggle"
+              />
+            </div>
+          </div>
         </div>
       </el-card>
 
@@ -115,10 +177,6 @@
                 </div>
               </div>
 
-              <!-- Implementation tips -->
-              <div v-if="step.implementationTip" class="implementation-tip">
-                <p><strong>Implementation Consideration:</strong> {{ step.implementationTip }}</p>
-              </div>
             </el-card>
           </el-timeline-item>
         </el-timeline>
@@ -172,7 +230,10 @@ import {
   Connection,
   ArrowLeft,
   ArrowRight,
-  ArrowDown
+  ArrowDown,
+  CircleCheck,
+  MoreFilled,
+  Unlock
 } from '@element-plus/icons-vue'
 import { strategyApi } from '@/api/phase1'
 import { useAuthStore } from '@/stores/auth'
@@ -213,8 +274,22 @@ const decisionPath = ref([])
 const reasoning = ref(null)
 const requiresUserChoice = ref(false)
 const userPreference = ref(null)
+const showAllStrategies = ref(false) // Controls whether additional strategies are enabled
 
 // Computed
+// Separate recommended strategies from all strategies
+const recommendedStrategyIds = computed(() => {
+  return new Set(recommendedStrategies.value.map(s => s.strategy))
+})
+
+const recommendedStrategyList = computed(() => {
+  return allStrategies.value.filter(s => recommendedStrategyIds.value.has(s.id))
+})
+
+const additionalStrategyList = computed(() => {
+  return allStrategies.value.filter(s => !recommendedStrategyIds.value.has(s.id))
+})
+
 const selectedStrategiesForDisplay = computed(() => {
   // If user selected a secondary strategy, add it to the list
   if (requiresUserChoice.value && userPreference.value) {
@@ -264,8 +339,7 @@ const enhancedDecisionPath = computed(() => {
       title: step.decision,
       explanation: step.reason,
       options: step.options || null,
-      requiresUserChoice: false,
-      implementationTip: null
+      requiresUserChoice: false
     }
 
     // Enhance based on strategy type
@@ -275,32 +349,27 @@ const enhancedDecisionPath = computed(() => {
     if (decision.includes('train-the-trainer') || decision.includes('train the trainer')) {
       enhanced.title = 'Why Train-the-Trainer?'
       enhanced.explanation = `The "Train the Trainer" strategy is always chosen first for organizations with large target groups. This multiplier approach enables scalable knowledge transfer. You have two options: train internal employees as expert trainers for long-term, cost-effective training (ideal for sustained qualification programs), or engage external trainers who bring immediate SE expertise that can be adapted to your company context (ideal for short-term qualification measures).`
-      enhanced.implementationTip = 'Internal trainers require extensive upfront training but enable repeated sessions without additional costs. External trainers offer immediate expertise but incur ongoing fees.'
     }
     // SE for Managers
     else if (decision.includes('se for managers') || decision.includes('managers')) {
       enhanced.title = 'Why SE for Managers First?'
       enhanced.explanation = `When SE processes and roles are not yet established (maturity level "Not available" or "Ad hoc/undefined"), your organization is in the motivation phase of SE introduction. At this stage, management buy-in is essential. The "SE for Managers" strategy is selected first because managers are the enablers for SE implementation projects. Only when company management is convinced of SE can a holistic introduction be guaranteed across the organization.`
-      enhanced.implementationTip = 'Focus on demonstrating business value and ROI to gain executive support for broader SE adoption.'
     }
     // User selects secondary strategy
     else if (step.options && step.options.length > 0) {
       enhanced.title = 'Select Your Secondary Strategy'
       enhanced.explanation = `After introducing SE to managers, you must decide on the next phase of your SE qualification journey. Since processes and roles are not yet fully established, you can choose between three paths based on your organizational priorities:`
       enhanced.requiresUserChoice = true
-      enhanced.implementationTip = 'The decision is iterative and can be adjusted based on results. Combinations of strategies are also possible.'
     }
     // Needs-based Project-oriented Training
     else if (decision.includes('needs-based') || decision.includes('project-oriented')) {
       enhanced.title = 'Why Needs-based Project-oriented Training?'
       enhanced.explanation = `Your organization has defined and established SE processes and roles (maturity level "Individually controlled" or higher), but SE is not yet widely deployed (rollout scope is "Not available" or "Individual area"). This indicates that while you have the foundation in place, SE needs broader application. The "Needs-based Project-oriented Training" strategy allows the majority of employees in selected projects to apply and experience SE in real-world scenarios, expanding SE adoption organically.`
-      enhanced.implementationTip = 'Select pilot projects where SE can demonstrate clear value and create internal champions for broader rollout.'
     }
     // Continuous Support
     else if (decision.includes('continuous support')) {
       enhanced.title = 'Why Continuous Support?'
       enhanced.explanation = `Your organization has both established SE processes/roles AND broad deployment across multiple areas or company-wide (rollout scope "Development area", "Company wide", or "Value chain"). At this maturity level, SE is already being practiced. "Continuous Support" is recommended to onboard remaining employees, provide refresher training for experienced practitioners, and maintain SE excellence as your practices evolve.`
-      enhanced.implementationTip = 'Establish communities of practice, regular knowledge sharing sessions, and ongoing coaching to sustain SE maturity.'
     }
 
     return enhanced
@@ -411,6 +480,27 @@ const handleStrategyToggle = (strategyId) => {
 const handleSecondarySelection = (strategyId) => {
   console.log('[StrategySelection] Secondary strategy selected:', strategyId)
   userPreference.value = strategyId
+
+  // Auto-unlock Additional Strategies section
+  if (!showAllStrategies.value) {
+    showAllStrategies.value = true
+    console.log('[StrategySelection] Auto-unlocked Additional Strategies section')
+  }
+
+  // Auto-select the chosen strategy card if not already selected
+  if (!isStrategySelected(strategyId)) {
+    handleStrategyToggle(strategyId)
+    console.log('[StrategySelection] Auto-selected strategy card:', strategyId)
+  }
+
+  // Scroll to the selected strategy card
+  setTimeout(() => {
+    const cardElement = document.getElementById(`strategy-card-${strategyId}`)
+    if (cardElement) {
+      cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      console.log('[StrategySelection] Scrolled to strategy card:', strategyId)
+    }
+  }, 300) // Small delay to ensure DOM has updated with unlocked cards
 }
 
 const getStrategyNameById = (strategyId) => {
@@ -628,6 +718,57 @@ onMounted(() => {
   line-height: 1.6;
 }
 
+.recommended-section {
+  margin-bottom: 48px;
+}
+
+.additional-section {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 2px dashed #e0e0e0;
+}
+
+.section-header {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.section-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #6c757d;
+  line-height: 1.6;
+  max-width: 900px;
+}
+
+.enable-additional-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px;
+  background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+  border: 2px dashed #bdbdbd;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.enable-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #757575;
+  font-style: italic;
+}
+
 .strategies-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -745,25 +886,6 @@ onMounted(() => {
   60% {
     transform: translateY(-5px);
   }
-}
-
-.implementation-tip {
-  margin-top: 16px;
-  padding: 12px;
-  background: #e3f2fd;
-  border-left: 4px solid #2196F3;
-  border-radius: 4px;
-}
-
-.implementation-tip p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: #1565C0;
-}
-
-.implementation-tip strong {
-  color: #0d47a1;
 }
 
 .action-buttons {

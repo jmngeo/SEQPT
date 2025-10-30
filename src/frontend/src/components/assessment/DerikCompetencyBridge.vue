@@ -270,8 +270,12 @@ const removeRole = (roleId) => {
 const loadRoles = async () => {
   try {
     loading.value = true
-    // Use SE-QPT's backend API endpoint
-    const response = await fetch('http://localhost:5000/roles')
+    // Use SE-QPT's backend API endpoint with authentication
+    const response = await fetch('http://localhost:5000/roles', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('se_qpt_token')}`
+      }
+    })
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -280,6 +284,7 @@ const loadRoles = async () => {
     const data = await response.json()
     // Backend returns array directly, not wrapped in {roles: [...]}
     roles.value = Array.isArray(data) ? data : (data.roles || [])
+    console.log('[DerikCompetencyBridge] Loaded roles:', roles.value)
   } catch (error) {
     ElMessage.error('Failed to load roles')
     console.error('Error loading roles:', error)
@@ -322,7 +327,7 @@ const loadCompetenciesForRoles = async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${localStorage.getItem('se_qpt_token')}`
       },
       body: JSON.stringify({
         role_ids: selectedRoles.value.map(role => role.id),
@@ -564,7 +569,7 @@ const submitSurvey = async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${localStorage.getItem('se_qpt_token')}`
       },
       body: JSON.stringify({
         user_id: user.id,
@@ -620,7 +625,7 @@ const submitSurvey = async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${localStorage.getItem('se_qpt_token')}`
       },
       body: JSON.stringify(submissionData)
     })
