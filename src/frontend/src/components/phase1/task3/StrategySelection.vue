@@ -254,6 +254,10 @@ const props = defineProps({
   rolesData: {
     type: Array,
     default: () => []
+  },
+  existingStrategies: {
+    type: Object,
+    default: null
   }
 })
 
@@ -293,8 +297,9 @@ const additionalStrategyList = computed(() => {
 const selectedStrategiesForDisplay = computed(() => {
   // If user selected a secondary strategy, add it to the list
   if (requiresUserChoice.value && userPreference.value) {
-    const hasSecondary = selectedStrategies.value.some(s => s.priority === 'SECONDARY')
-    if (!hasSecondary) {
+    // Check if the user-selected strategy already exists in the array (by ID, not priority)
+    const alreadyExists = selectedStrategies.value.some(s => s.strategy === userPreference.value)
+    if (!alreadyExists) {
       // Add the user-selected secondary strategy
       return [
         ...selectedStrategies.value,
@@ -384,7 +389,8 @@ const initializeStrategies = async () => {
 
     console.log('[StrategySelection] Initializing with data:', {
       maturity: props.maturityData,
-      targetGroup: props.targetGroupData
+      targetGroup: props.targetGroupData,
+      hasExistingStrategies: !!props.existingStrategies
     })
 
     // Step 1: Fetch all strategy definitions
@@ -393,8 +399,8 @@ const initializeStrategies = async () => {
 
     console.log('[StrategySelection] Loaded', allStrategies.value.length, 'strategy definitions')
 
-    // Step 2: ALWAYS calculate fresh strategies based on current maturity and target group data
-    // (Previously saved strategies are ignored - we calculate fresh every time)
+    // Step 2: Calculate recommended strategies based on current maturity and target group data
+    // (Always calculate to show recommendations, but may be overridden by existing selections)
 
     // Transform maturityData to backend expected format (snake_case)
     const transformedMaturityData = {
@@ -414,15 +420,38 @@ const initializeStrategies = async () => {
     )
 
     recommendedStrategies.value = calculationResponse.strategies
-    selectedStrategies.value = [...calculationResponse.strategies]
     decisionPath.value = calculationResponse.decisionPath || []
     reasoning.value = calculationResponse.reasoning || null
     requiresUserChoice.value = calculationResponse.requiresUserChoice || false
 
-    console.log('[StrategySelection] Fresh calculation complete:', {
+    // Step 3: Check if user has previously saved strategies
+    if (props.existingStrategies && props.existingStrategies.strategies && props.existingStrategies.strategies.length > 0) {
+      // User has existing selections - restore them
+      console.log('[StrategySelection] Restoring existing user selections:', {
+        count: props.existingStrategies.count,
+        strategies: props.existingStrategies.strategies.map(s => s.strategyName)
+      })
+
+      selectedStrategies.value = props.existingStrategies.strategies
+
+      // Restore user preference if exists
+      if (props.existingStrategies.userPreference) {
+        userPreference.value = props.existingStrategies.userPreference
+        console.log('[StrategySelection] Restored user preference:', userPreference.value)
+      }
+
+      ElMessage.success('Loaded your previously selected strategies')
+    } else {
+      // No existing selections - use freshly calculated recommendations
+      console.log('[StrategySelection] No existing selections - using fresh recommendations')
+      selectedStrategies.value = [...calculationResponse.strategies]
+    }
+
+    console.log('[StrategySelection] Initialization complete:', {
       recommendedCount: recommendedStrategies.value.length,
+      selectedCount: selectedStrategies.value.length,
       requiresUserChoice: requiresUserChoice.value,
-      strategies: recommendedStrategies.value.map(s => s.strategyName)
+      strategies: selectedStrategies.value.map(s => s.strategyName)
     })
 
   } catch (err) {
