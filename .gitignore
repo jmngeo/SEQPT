@@ -139,3 +139,10 @@ data/rag_vectordb/chroma/
 *.njsproj
 *.sln
 *.sw?
+
+# Docker (local development data, not deployment files)
+# Note: Dockerfile, docker-compose.yml, .dockerignore ARE tracked
+.docker/
+docker-data/
+*.tar
+postgres_data/
