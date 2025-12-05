@@ -38,6 +38,7 @@ instance/
 .env
 .env.local
 .env.*.local
+.env.backup*
 
 # IDEs
 .vscode/
@@ -146,3 +147,6 @@ data/rag_vectordb/chroma/
 docker-data/
 *.tar
 postgres_data/
+
+# SSH keys for deployment
+.ssh/
