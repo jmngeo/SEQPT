@@ -265,7 +265,14 @@ def create_process_identification_chain(llm, process_data):
 # --- Create the reasoning prompt and chain ---
 def create_reasoning_prompt():
     system_prompt = """
-        You are an expert in ISO processes. Given the user's tasks and the retrieved ISO processes, determine the user's involvement level in each process by considering the following bias:
+        You are an expert in ISO processes. Given the user's tasks and the retrieved ISO processes, determine the user's involvement level in each process.
+
+        IMPORTANT: The user's tasks are organized into three categories that directly map to involvement levels:
+        - Tasks under "Responsible For:" → Assign "Responsible" involvement level (user has primary ownership and accountability)
+        - Tasks under "Supporting:" → Assign "Supporting" involvement level (user assists others or provides support)
+        - Tasks under "Designing:" → Assign "Designing" involvement level (user defines, architects, or improves processes/systems)
+
+        Process classification bias (general trends, but defer to task category mapping above):
         - The target audience is primarily involved in:
             Business or mission analysis, Validation, Stakeholder needs and requirements definition, System requirements definition, System architecture definition, Design definition, System analysis, Implementation, Integration, Verification, Transition, Operation, Maintenance, Disposal.
         - They sometimes perform:
@@ -273,12 +280,24 @@ def create_reasoning_prompt():
         - They rarely perform:
             Acquisition, Supply, Life cycle model management, Infrastructure management, Portfolio management, Human resource management, Quality management, Knowledge management.
 
-        Remember these are only generally observed biases, it may not be not applicable to user under consideration.
-        Classify each process as one of:
-        - Not performing
-        - Responsible
-        - Supporting
-        - Designing
+        Involvement levels (in descending order of responsibility):
+        - Designing: User defines, architects, or improves the process (highest level of ownership)
+        - Responsible: User has primary ownership and accountability for executing the process
+        - Supporting: User assists others or provides support for the process
+        - Not performing: User does not perform this process
+
+        CRITICAL RULES:
+        1. Match each task to the most relevant ISO process based on the task description
+        2. Assign the involvement level based on which category the task was listed under
+        3. If the user provides ANY meaningful tasks (not "Not responsible for any tasks" or similar),
+           you MUST identify at least ONE process with an involvement level higher than "Not performing"
+        4. A single ISO process can only have ONE involvement level - use the HIGHEST level if multiple tasks map to the same process
+
+        Examples:
+        - "Defining system requirements" under "Responsible For:" → System requirements definition process with "Responsible" involvement
+        - "Code reviews" under "Supporting:" → Verification process with "Supporting" involvement
+        - "Designing software architecture" under "Designing:" → System architecture definition process with "Designing" involvement
+        - "Testing support" under "Supporting:" → Verification process with "Supporting" involvement
 
         Provide a structured output as a list of dictionaries with 'process_name' and 'involvement'.
         """
@@ -362,8 +381,14 @@ openai_embeddings = OpenAIEmbeddings(
     model="text-embedding-ada-002"
 )
 
+# Use absolute path based on module location for Docker/deployment compatibility
+# This file is at: src/backend/app/services/llm_pipeline/llm_process_identification_pipeline.py
+# FAISS index is at: src/backend/app/faiss_index/
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_faiss_index_path = os.path.join(_current_dir, '..', '..', 'faiss_index')
+
 vector_store = FAISS.load_local(
-    "app/faiss_index",  # Directory where the FAISS index is stored
+    _faiss_index_path,
     openai_embeddings,
     allow_dangerous_deserialization=True
 )

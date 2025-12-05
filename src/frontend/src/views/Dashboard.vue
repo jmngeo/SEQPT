@@ -15,74 +15,6 @@
           </el-tooltip>
         </div>
       </div>
-
-      <div class="quick-actions">
-        <el-button type="primary" @click="startNewAssessment">
-          <el-icon><Plus /></el-icon>
-          New Assessment
-        </el-button>
-      </div>
-    </div>
-
-    <!-- Progress Overview -->
-    <div class="progress-overview">
-      <el-row :gutter="24">
-        <el-col :span="6">
-          <el-card class="progress-card">
-            <div class="progress-content">
-              <div class="progress-icon assessments">
-                <el-icon size="32"><DocumentChecked /></el-icon>
-              </div>
-              <div class="progress-stats">
-                <div class="progress-number">{{ assessmentStore.totalAssessments }}</div>
-                <div class="progress-label">Total Assessments</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-
-        <el-col :span="6">
-          <el-card class="progress-card">
-            <div class="progress-content">
-              <div class="progress-icon completed">
-                <el-icon size="32"><SuccessFilled /></el-icon>
-              </div>
-              <div class="progress-stats">
-                <div class="progress-number">{{ assessmentStore.completedAssessments.length }}</div>
-                <div class="progress-label">Completed</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-
-        <el-col :span="6">
-          <el-card class="progress-card">
-            <div class="progress-content">
-              <div class="progress-icon plans">
-                <el-icon size="32"><Calendar /></el-icon>
-              </div>
-              <div class="progress-stats">
-                <div class="progress-number">{{ qualificationPlans.length }}</div>
-                <div class="progress-label">Active Plans</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-
-        <el-col :span="6">
-          <el-card class="progress-card">
-            <div class="progress-content">
-              <div class="progress-icon rate">
-                <el-icon size="32"><TrendCharts /></el-icon>
-              </div>
-              <div class="progress-stats">
-                <div class="progress-number">{{ Math.round(assessmentStore.completionRate) }}%</div>
-                <div class="progress-label">Completion Rate</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
     </div>
 
     <!-- Main Content Grid -->
@@ -287,71 +219,6 @@
               </div>
             </div>
           </el-card>
-
-          <!-- Learning Objectives -->
-          <el-card class="section-card">
-            <template #header>
-              <h3>Learning Objectives</h3>
-            </template>
-
-            <div class="learning-objectives">
-              <div v-if="learningObjectives.length > 0">
-                <div
-                  v-for="objective in learningObjectives.slice(0, 3)"
-                  :key="objective.id"
-                  class="objective-item"
-                >
-                  <div class="objective-content">
-                    <p class="objective-text">{{ objective.text }}</p>
-                    <div class="objective-meta">
-                      <el-tag size="small" type="info">{{ objective.competency }}</el-tag>
-                      <span class="objective-quality">{{ Math.round(objective.quality * 100) }}% quality</span>
-                    </div>
-                  </div>
-                </div>
-
-                <el-button type="text" @click="viewAllObjectives" class="view-all-btn">
-                  View All Objectives →
-                </el-button>
-              </div>
-
-              <div v-else class="no-objectives">
-                <el-icon size="48" class="empty-icon"><Aim /></el-icon>
-                <p>Learning objectives will be generated during Phase 2 (Identify Requirements and Competencies)</p>
-              </div>
-            </div>
-          </el-card>
-
-          <!-- Next Steps -->
-          <el-card class="section-card">
-            <template #header>
-              <h3>Recommended Next Steps</h3>
-            </template>
-
-            <div class="next-steps">
-              <div
-                v-for="step in nextSteps"
-                :key="step.id"
-                class="next-step-item"
-                @click="executeStep(step)"
-              >
-                <div class="step-icon" :class="step.type">
-                  <el-icon>
-                    <component :is="step.icon" />
-                  </el-icon>
-                </div>
-
-                <div class="step-content">
-                  <div class="step-title">{{ step.title }}</div>
-                  <div class="step-description">{{ step.description }}</div>
-                </div>
-
-                <div class="step-arrow">
-                  <el-icon><ArrowRight /></el-icon>
-                </div>
-              </div>
-            </div>
-          </el-card>
         </el-col>
       </el-row>
     </div>
@@ -378,10 +245,7 @@ const assessmentStore = useAssessmentStore()
 const { canAccessPhase, getPhaseStatus, getPhaseTitle, getPhaseDescription, checkPhaseCompletion } = usePhaseProgression()
 
 // State
-const qualificationPlans = ref([])
 const competencyStats = ref([])
-const learningObjectives = ref([])
-const nextSteps = ref([])
 const organizationCode = ref(null)
 const phaseDataLoaded = ref(false) // Track when phase completion data is loaded
 
@@ -487,12 +351,6 @@ const employeePhases = computed(() => {
 })
 
 // Methods
-const startNewAssessment = () => {
-  // Both admin and employee go to Phase 1
-  router.push('/app/phases/1')
-}
-
-
 const continueAssessment = (assessment) => {
   router.push(`/app/assessments/${assessment.uuid}/take`)
 }
@@ -507,17 +365,8 @@ const navigateToPhase = (route) => {
   }
 }
 
-
 const viewAllCompetencies = () => {
   router.push('/app/phases/2')
-}
-
-const viewAllObjectives = () => {
-  router.push('/app/objectives')
-}
-
-const executeStep = (step) => {
-  router.push(step.route)
 }
 
 const getStatusType = (status) => {
@@ -549,7 +398,6 @@ const loadDashboardData = async () => {
 
   // Initialize empty arrays - real data will come from actual assessments
   competencyStats.value = []
-  learningObjectives.value = []
 
   // Refresh phase completion status (especially important for employees)
   console.log('[Dashboard] onMounted - starting phase check')
@@ -606,47 +454,6 @@ const loadDashboardData = async () => {
   } catch (error) {
     console.error('[Dashboard] Error loading competency overview:', error)
   }
-
-  // Set up next steps based on user role and actual progress
-  if (authStore.isAdmin) {
-    nextSteps.value = [
-      {
-        id: 1,
-        title: 'Prepare SE Training',
-        description: 'Assess maturity, identify roles, and select strategy',
-        icon: 'DocumentChecked',
-        type: 'assessment',
-        route: '/app/phases/1'
-      },
-      {
-        id: 2,
-        title: 'Manage Organization',
-        description: 'View and manage organizational settings',
-        icon: 'Setting',
-        type: 'profile',
-        route: '/app/admin/organization'
-      }
-    ]
-  } else {
-    nextSteps.value = [
-      {
-        id: 1,
-        title: 'View SE Training Preparation',
-        description: 'Review organizational maturity, roles, and strategy',
-        icon: 'OfficeBuilding',
-        type: 'exploration',
-        route: '/app/phases/1'
-      },
-      {
-        id: 2,
-        title: 'Identify Competencies',
-        description: 'Define competencies and learning objectives',
-        icon: 'User',
-        type: 'assessment',
-        route: '/app/phases/2'
-      }
-    ]
-  }
 }
 
 // Lifecycle
@@ -679,69 +486,6 @@ onMounted(() => {
 .welcome-subtitle {
   color: #6c757d;
   font-size: 1.1rem;
-}
-
-.quick-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.progress-overview {
-  margin-bottom: 32px;
-}
-
-.progress-card {
-  text-align: center;
-}
-
-.progress-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-}
-
-.progress-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.progress-icon.assessments {
-  background: linear-gradient(135deg, #409eff, #337ecc);
-}
-
-.progress-icon.completed {
-  background: linear-gradient(135deg, #67c23a, #529b2e);
-}
-
-.progress-icon.plans {
-  background: linear-gradient(135deg, #e6a23c, #cf9236);
-}
-
-.progress-icon.rate {
-  background: linear-gradient(135deg, #f56c6c, #dd6161);
-}
-
-.progress-stats {
-  text-align: left;
-}
-
-.progress-number {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2c3e50;
-  line-height: 1;
-}
-
-.progress-label {
-  color: #6c757d;
-  font-size: 0.9rem;
-  margin-top: 4px;
 }
 
 .dashboard-grid {
@@ -911,8 +655,7 @@ onMounted(() => {
 }
 
 
-.competency-overview,
-.learning-objectives {
+.competency-overview {
   min-height: 200px;
 }
 
@@ -950,110 +693,13 @@ onMounted(() => {
   font-style: italic;
 }
 
-.objective-item {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.objective-item:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
-.objective-text {
-  font-size: 0.9rem;
-  color: #2c3e50;
-  margin-bottom: 8px;
-  line-height: 1.4;
-}
-
-.objective-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.objective-quality {
-  font-size: 0.8rem;
-  color: #6c757d;
-}
-
-.next-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.next-step-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.next-step-item:hover {
-  border-color: #409eff;
-  background: #f8f9fa;
-}
-
-.step-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  flex-shrink: 0;
-}
-
-.step-icon.assessment {
-  background: #409eff;
-}
-
-.step-icon.profile {
-  background: #67c23a;
-}
-
-.step-icon.exploration {
-  background: #e6a23c;
-}
-
-.step-content {
-  flex: 1;
-}
-
-.step-title {
-  font-weight: 500;
-  color: #2c3e50;
-  margin-bottom: 4px;
-  font-size: 0.9rem;
-}
-
-.step-description {
-  font-size: 0.8rem;
-  color: #6c757d;
-}
-
-.step-arrow {
-  color: #6c757d;
-  flex-shrink: 0;
-}
-
 .view-all-btn {
   margin-top: 16px;
   color: #409eff;
   font-size: 0.9rem;
 }
 
-.no-competencies,
-.no-objectives {
+.no-competencies {
   text-align: center;
   padding: 40px 20px;
   color: #6c757d;
@@ -1064,8 +710,7 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.no-competencies p,
-.no-objectives p {
+.no-competencies p {
   margin-bottom: 16px;
   font-size: 0.9rem;
 }
@@ -1081,22 +726,9 @@ onMounted(() => {
     align-items: stretch;
   }
 
-  .quick-actions {
-    justify-content: center;
-  }
-
   .current-assessment {
     flex-direction: column;
     gap: 16px;
-  }
-
-  .progress-content {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .progress-stats {
-    text-align: center;
   }
 }
 </style>

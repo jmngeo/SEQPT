@@ -24,7 +24,6 @@ import TakeAssessment from '@/views/assessments/TakeAssessment.vue'
 import PhaseOne from '@/views/phases/PhaseOne.vue'
 import PhaseTwo from '@/views/phases/PhaseTwo.vue'
 import PhaseThree from '@/views/phases/PhaseThree.vue'
-import PhaseFour from '@/views/phases/PhaseFour.vue'
 
 // Qualification Plan views
 import QualificationPlans from '@/views/plans/QualificationPlans.vue'
@@ -34,7 +33,6 @@ import PlanDetails from '@/views/plans/PlanDetails.vue'
 // Learning Objectives views
 import LearningObjectives from '@/views/objectives/LearningObjectives.vue'
 import GenerateObjectives from '@/views/objectives/GenerateObjectives.vue'
-import RAGObjectives from '@/views/RAGObjectives.vue'
 
 // Learning Module views
 import LearningModules from '@/views/modules/LearningModules.vue'
@@ -42,18 +40,7 @@ import LearningModules from '@/views/modules/LearningModules.vue'
 // Analytics views
 import Analytics from '@/views/analytics/Analytics.vue'
 
-// Profile and Settings
-import Profile from '@/views/Profile.vue'
-import Settings from '@/views/Settings.vue'
-
-// Admin views
-import AdminDashboard from '@/views/admin/AdminDashboard.vue'
-import AdminPanel from '@/views/admin/AdminPanel.vue'
-import UserManagement from '@/views/admin/UserManagement.vue'
-import CompetencyManagement from '@/views/admin/CompetencyManagement.vue'
-import ModuleManagement from '@/views/admin/ModuleManagement.vue'
-import SystemConfig from '@/views/admin/SystemConfig.vue'
-import Reports from '@/views/admin/Reports.vue'
+// Admin views - placeholder pages removed, only matrix config pages remain
 
 // Error pages
 import NotFound from '@/views/errors/NotFound.vue'
@@ -165,19 +152,66 @@ const routes = [
         }
       },
       {
-        path: 'phases/2/new',
-        name: 'Phase2New',
-        component: () => import('@/views/phases/Phase2NewFlow.vue'),
-        meta: { title: 'Phase 2: Competency Assessment (New)', phase: 2 },
+        path: 'phases/2/admin/learning-objectives',
+        name: 'Phase2Task3Admin',
+        component: () => import('@/views/phases/Phase2Task3Admin.vue'),
+        meta: {
+          title: 'Learning Objectives',
+          showHeader: false,
+          requiresAdmin: true,
+          phase: 2
+        },
         beforeEnter: async (to, from, next) => {
-          const { checkPhaseCompletion, canAccessPhase, getNextAvailablePhase } = usePhaseProgression()
-          await checkPhaseCompletion() // Refresh phase status from database
+          const authStore = useAuthStore()
+
+          // Check admin permissions
+          if (!authStore.isAdmin) {
+            ElMessage.error('Admin access required for Phase 2 Task 3')
+            next('/app/dashboard')
+            return
+          }
+
+          // Check if Phase 2 is accessible
+          const { checkPhaseCompletion, canAccessPhase } = usePhaseProgression()
+          await checkPhaseCompletion()
+
           if (canAccessPhase(2)) {
             next()
           } else {
-            const nextPhase = getNextAvailablePhase()
             ElMessage.warning('Please complete Phase 1 before accessing Phase 2')
-            next(`/app/phases/${nextPhase}`)
+            next('/app/phases/1')
+          }
+        }
+      },
+      {
+        path: 'phases/2/admin/learning-objectives/results/:orgId',
+        name: 'Phase2Task3Results',
+        component: () => import('@/views/phases/Phase2Task3Results.vue'),
+        meta: {
+          title: 'Learning Objectives Results',
+          showHeader: false,
+          requiresAdmin: true,
+          phase: 2
+        },
+        beforeEnter: async (to, from, next) => {
+          const authStore = useAuthStore()
+
+          // Check admin permissions
+          if (!authStore.isAdmin) {
+            ElMessage.error('Admin access required to view learning objectives results')
+            next('/app/dashboard')
+            return
+          }
+
+          // Check if Phase 2 is accessible
+          const { checkPhaseCompletion, canAccessPhase } = usePhaseProgression()
+          await checkPhaseCompletion()
+
+          if (canAccessPhase(2)) {
+            next()
+          } else {
+            ElMessage.warning('Please complete Phase 1 before accessing Phase 2')
+            next('/app/phases/1')
           }
         }
       },
@@ -194,23 +228,6 @@ const routes = [
           } else {
             const nextPhase = getNextAvailablePhase()
             ElMessage.warning('Please complete previous phases before accessing Phase 3')
-            next(`/app/phases/${nextPhase}`)
-          }
-        }
-      },
-      {
-        path: 'phases/4',
-        name: 'PhaseFour',
-        component: PhaseFour,
-        meta: { title: 'Phase 4: Cohort Formation', phase: 4 },
-        beforeEnter: async (to, from, next) => {
-          const { checkPhaseCompletion, canAccessPhase, getNextAvailablePhase } = usePhaseProgression()
-          await checkPhaseCompletion() // Refresh phase status from database
-          if (canAccessPhase(4)) {
-            next()
-          } else {
-            const nextPhase = getNextAvailablePhase()
-            ElMessage.warning('Please complete all previous phases before accessing Phase 4')
             next(`/app/phases/${nextPhase}`)
           }
         }
@@ -252,28 +269,10 @@ const routes = [
         meta: { title: 'Generate Learning Objectives' }
       },
       {
-        path: 'objectives/rag',
-        name: 'RAGObjectives',
-        component: RAGObjectives,
-        meta: { title: 'RAG-LLM Objective Generation' }
-      },
-      {
         path: 'analytics',
         name: 'Analytics',
         component: Analytics,
         meta: { title: 'Analytics & Insights' }
-      },
-      {
-        path: 'profile',
-        name: 'Profile',
-        component: Profile,
-        meta: { title: 'Profile' }
-      },
-      {
-        path: 'settings',
-        name: 'Settings',
-        component: Settings,
-        meta: { title: 'Settings' }
       }
     ]
   },
@@ -284,49 +283,7 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/admin/dashboard'
-      },
-      {
-        path: 'dashboard',
-        name: 'AdminDashboard',
-        component: AdminDashboard,
-        meta: { title: 'Admin Dashboard' }
-      },
-      {
-        path: 'panel',
-        name: 'AdminPanel',
-        component: AdminPanel,
-        meta: { title: 'Admin Panel' }
-      },
-      {
-        path: 'users',
-        name: 'UserManagement',
-        component: UserManagement,
-        meta: { title: 'User Management' }
-      },
-      {
-        path: 'competencies',
-        name: 'CompetencyManagement',
-        component: CompetencyManagement,
-        meta: { title: 'Competency Management' }
-      },
-      {
-        path: 'modules',
-        name: 'ModuleManagement',
-        component: ModuleManagement,
-        meta: { title: 'Module Management' }
-      },
-      {
-        path: 'config',
-        name: 'SystemConfig',
-        component: SystemConfig,
-        meta: { title: 'System Configuration' }
-      },
-      {
-        path: 'reports',
-        name: 'Reports',
-        component: Reports,
-        meta: { title: 'Reports & Analytics' }
+        redirect: '/admin/matrix/role-process'
       },
       {
         path: 'matrix/role-process',

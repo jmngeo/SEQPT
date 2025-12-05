@@ -316,7 +316,7 @@ const organizationName = computed(() => authStore.organizationName || 'Your Orga
 // Fetch processes
 const fetchProcesses = async () => {
   try {
-    const processResponse = await axios.get('/roles_and_processes')
+    const processResponse = await axios.get('/api/roles-and-processes')
     processes.value = processResponse.data.processes
     console.log('[AdminMatrix] Processes loaded:', processes.value)
   } catch (error) {
@@ -331,7 +331,7 @@ const fetchOrganizationRoles = async () => {
 
   try {
     loading.value = true
-    const response = await axios.get(`/organization_roles/${authStore.organizationId}`)
+    const response = await axios.get(`/api/organization/${authStore.organizationId}/roles`)
     roles.value = response.data
     console.log('[AdminMatrix] Organization roles loaded:', roles.value)
   } catch (error) {
@@ -369,7 +369,7 @@ const fetchMatrixValues = async () => {
       try {
         console.log(`[AdminMatrix] Fetching matrix for role ID ${role.id} (${role.org_role_name})`)
         const response = await axios.get(
-          `/role_process_matrix/${authStore.organizationId}/${role.id}`
+          `/api/role-process-matrix/${authStore.organizationId}/${role.id}`
         )
 
         console.log(`[AdminMatrix] Received ${response.data.length} entries for role ${role.id}`)
@@ -425,7 +425,7 @@ const handleSave = async () => {
       })
 
       // Call API for this role
-      await axios.put('/role_process_matrix/bulk', {
+      await axios.put('/api/role-process-matrix/bulk', {
         organization_id: authStore.organizationId,
         role_cluster_id: role.id,
         matrix: roleMatrix

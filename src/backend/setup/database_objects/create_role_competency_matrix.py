@@ -26,7 +26,7 @@ with app.app_context():
             role_competency_value INTEGER DEFAULT -100 NOT NULL,
             organization_id INTEGER NOT NULL,
             CONSTRAINT role_competency_matrix_role_competency_value_check
-                CHECK (role_competency_value = ANY (ARRAY[-100, 0, 1, 2, 3, 4, 6])),
+                CHECK (role_competency_value = ANY (ARRAY[-100, 0, 1, 2, 4, 6])),
             CONSTRAINT fk_role_cluster
                 FOREIGN KEY (role_cluster_id) REFERENCES public.role_cluster(id),
             CONSTRAINT fk_competency

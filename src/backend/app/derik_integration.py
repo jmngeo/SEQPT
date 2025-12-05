@@ -88,18 +88,26 @@ def identify_processes_public():
                 else:
                     processes = []
 
-                # Extract process names from the ISOProcessInvolvementModel
+                # Extract process data from the ISOProcessInvolvementModel
                 if hasattr(processes, '__iter__'):
-                    process_names = [p.process_name if hasattr(p, 'process_name') else str(p) for p in processes]
+                    process_data = []
+                    for p in processes:
+                        if hasattr(p, 'process_name') and hasattr(p, 'involvement'):
+                            process_data.append({
+                                'process_name': p.process_name,
+                                'involvement': p.involvement
+                            })
+                        else:
+                            process_data.append({'process_name': str(p), 'involvement': 'Unknown'})
                 else:
-                    process_names = []
+                    process_data = []
 
-                if process_names:
-                    print(f"Successfully identified {len(process_names)} processes using RAG-LLM")
+                if process_data:
+                    print(f"Successfully identified {len(process_data)} processes using RAG-LLM")
                     llm_success = True
                     return {
-                        'identified_processes': process_names,
-                        'confidence_scores': {p: 0.85 for p in process_names},
+                        'identified_processes': process_data,
+                        'confidence_scores': {p['process_name']: 0.85 for p in process_data},
                         'reasoning': 'Identified using RAG-LLM pipeline with OpenAI GPT-4o-mini',
                         'raw_response': str(reasoning_result),
                         'status': result.get('status', 'success')

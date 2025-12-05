@@ -19,17 +19,17 @@
     >
       <template #default>
         <div>
-          <strong>Pre-populated Baseline Values</strong>
+          <strong>Smart Initialized Values</strong>
           <p style="margin: 8px 0 0 0; font-size: 13px; line-height: 1.5;">
-            Roles mapped to standard clusters have been initialized with baseline process involvement values
-            based on the role-process matrix defined by <strong>Könemann et al.</strong>
-            You may now customize these values to accurately reflect your organization's specific structure and responsibilities.
+            <strong>SE Cluster Roles:</strong> Initialized with baseline involvement values from <strong>Könemann et al.</strong><br/>
+            <strong>Custom Roles:</strong> AI-generated intelligent starting values based on role description and context.<br/>
+            <strong>All values are editable</strong> - review and adjust them to match your organization's structure.
           </p>
         </div>
       </template>
     </el-alert>
 
-    <!-- Info alert with RACI rules -->
+    <!-- Info alert with involvement scale -->
     <el-alert
       type="info"
       :closable="false"
@@ -38,45 +38,17 @@
     >
       <template #default>
         <div>
-          <strong>RACI Validation Rules:</strong>
+          <strong>Process Involvement Scale (0-3):</strong>
           <ul style="margin: 8px 0 0 0; padding-left: 20px;">
-            <li><strong>0</strong> = Not involved | <strong>1</strong> = Supports | <strong>2</strong> = Responsible | <strong>3</strong> = Accountable/Designs</li>
-            <li><strong>Each process MUST have exactly ONE role with value 2 (Responsible)</strong></li>
-            <li><strong>Each process can have AT MOST ONE role with value 3 (Accountable)</strong></li>
-            <li>You cannot proceed until all processes pass validation</li>
+            <li><strong>0</strong> = Not involved | <strong>1</strong> = Supports | <strong>2</strong> = Performs/Responsible | <strong>3</strong> = Leads/Accountable</li>
+            <li>Values represent the level of involvement each role has in SE processes</li>
+            <li><em>Optional RACI Guidelines:</em> Each process ideally has one role with value 2 and at most one with value 3</li>
+            <li>You can save and continue even if guidelines aren't strictly followed</li>
           </ul>
         </div>
       </template>
     </el-alert>
 
-    <!-- Validation Summary -->
-    <div v-if="!loading && processes.length > 0" class="validation-summary">
-      <el-alert
-        :type="allProcessesValid ? 'success' : 'error'"
-        :closable="false"
-        show-icon
-      >
-        <template #default>
-          <div v-if="allProcessesValid">
-            <strong>All processes pass validation!</strong> You can save and continue.
-          </div>
-          <div v-else>
-            <strong>{{ invalidProcessCount }} process(es) need attention</strong>
-            <div style="margin-top: 8px; font-size: 13px;">
-              <div v-if="processesWithoutResponsible.length > 0">
-                - {{ processesWithoutResponsible.length }} process(es) missing Responsible (need exactly 1 role with value 2)
-              </div>
-              <div v-if="processesWithMultipleResponsible.length > 0">
-                - {{ processesWithMultipleResponsible.length }} process(es) have multiple Responsible roles
-              </div>
-              <div v-if="processesWithMultipleAccountable.length > 0">
-                - {{ processesWithMultipleAccountable.length }} process(es) have multiple Accountable roles
-              </div>
-            </div>
-          </div>
-        </template>
-      </el-alert>
-    </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
@@ -215,7 +187,7 @@
         type="primary"
         size="large"
         :loading="saving"
-        :disabled="!allProcessesValid || roles.length === 0"
+        :disabled="roles.length === 0"
         @click="handleSave"
       >
         Save & Continue
@@ -380,14 +352,22 @@ const fetchRolesAndProcesses = async () => {
     loading.value = true
 
     // Fetch processes
-    const processResponse = await axios.get('/roles_and_processes')
-    processes.value = processResponse.data.processes
+    const processResponse = await axios.get('/api/roles-and-processes')
+    console.log('[RoleProcessMatrix] API Response:', processResponse.data)
+
+    // Handle both possible response structures
+    processes.value = processResponse.data.processes || processResponse.data.se_processes || []
 
     // Use roles from props (already saved with IDs from database)
     roles.value = props.roles
 
     console.log('[RoleProcessMatrix] Roles:', roles.value)
     console.log('[RoleProcessMatrix] Processes:', processes.value)
+
+    if (!processes.value || processes.value.length === 0) {
+      console.warn('[RoleProcessMatrix] No processes loaded')
+      ElMessage.warning('No processes found')
+    }
   } catch (error) {
     console.error('[RoleProcessMatrix] Error fetching data:', error)
     ElMessage.error('Failed to load processes')
@@ -399,6 +379,13 @@ const fetchRolesAndProcesses = async () => {
 // Fetch existing matrix values for all roles
 const fetchMatrixValues = async () => {
   if (!authStore.organizationId || roles.value.length === 0) return
+
+  // Guard against undefined processes
+  if (!processes.value || processes.value.length === 0) {
+    console.error('[RoleProcessMatrix] Cannot fetch matrix: processes not loaded')
+    ElMessage.error('Cannot load matrix: processes data missing')
+    return
+  }
 
   try {
     loading.value = true
@@ -422,7 +409,7 @@ const fetchMatrixValues = async () => {
       try {
         console.log(`[RoleProcessMatrix] Fetching matrix for role ID ${role.id} (${role.orgRoleName})`)
         const response = await axios.get(
-          `/role_process_matrix/${authStore.organizationId}/${role.id}`
+          `/api/role-process-matrix/${authStore.organizationId}/${role.id}`
         )
 
         console.log(`[RoleProcessMatrix] Received ${response.data.length} entries for role ${role.id}`)
@@ -463,11 +450,6 @@ const fetchMatrixValues = async () => {
 
 // Save matrix values
 const handleSave = async () => {
-  if (!allProcessesValid.value) {
-    ElMessage.error('Please fix validation errors before saving')
-    return
-  }
-
   saving.value = true
   try {
     // Save each role's matrix separately (API expects one role at a time)
@@ -479,7 +461,7 @@ const handleSave = async () => {
       })
 
       // Call API for this role
-      await axios.put('/role_process_matrix/bulk', {
+      await axios.put('/api/role-process-matrix/bulk', {
         organization_id: authStore.organizationId,
         role_cluster_id: role.id,
         matrix: roleMatrix

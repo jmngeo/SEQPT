@@ -191,8 +191,8 @@
           <el-icon><Download /></el-icon>
           Export Results
         </el-button>
-        <el-button v-if="authStore.isAdmin" type="primary" @click="proceedToNextStep" size="large">
-          Generate Learning Objectives
+        <el-button v-if="authStore.isAdmin" type="primary" @click="goToLearningObjectives" size="large">
+          Proceed to Learning Objectives
         </el-button>
       </div>
     </div>
@@ -384,7 +384,7 @@ const processAssessmentData = async () => {
       // Mode 1: Fetch by assessment_id from new API endpoint (persistent URL)
       console.log('Fetching results by assessment ID:', assessmentId)
 
-      const response = await axios.get(`http://localhost:5000/assessment/${assessmentId}/results`, {
+      const response = await axios.get(`/api/assessment/${assessmentId}/results`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -394,7 +394,7 @@ const processAssessmentData = async () => {
       user_scores = data.user_scores
       max_scores = data.max_scores
       feedback_list = data.feedback_list
-      apiSelectedRoles = data.assessment?.selected_roles || []
+      apiSelectedRoles = data.selected_roles_data || []
       type = data.assessment?.assessment_type
 
       console.log('Received from new authenticated API:', data)
@@ -406,7 +406,7 @@ const processAssessmentData = async () => {
 
       console.log('Fetching results by assessment ID from props:', assessmentIdFromProps)
 
-      const response = await axios.get(`http://localhost:5000/assessment/${assessmentIdFromProps}/results`, {
+      const response = await axios.get(`/api/assessment/${assessmentIdFromProps}/results`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -416,7 +416,7 @@ const processAssessmentData = async () => {
       user_scores = data.user_scores
       max_scores = data.max_scores
       feedback_list = data.feedback_list
-      apiSelectedRoles = data.assessment?.selected_roles || propRoles || []
+      apiSelectedRoles = data.selected_roles_data || propRoles || []
       type = data.assessment?.assessment_type || propType
 
       console.log('Received from new authenticated API (props mode):', data)
@@ -906,11 +906,27 @@ const proceedToNextStep = () => {
   })
 }
 
+const goToLearningObjectives = () => {
+  // Navigate to Phase 2 Task 3 Admin (Dashboard) page
+  // The component automatically uses the user's organization_id
+  router.push({ name: 'Phase2Task3Admin' })
+}
+
 const retakeAssessment = () => {
+  console.log('[CompetencyResults] Retake button clicked, navigating to Phase 2...')
+
   // Navigate back to Phase 2 landing page with fresh=true query parameter
   // This tells Phase 2 to skip the auto-redirect and start a new assessment
-  router.push('/app/phases/2?fresh=true')
+
+  // IMPORTANT: Use window.location.href to force a full page reload
+  // This ensures the component is completely unmounted and remounted with fresh state,
+  // even if the user is already on /app/phases/2?fresh=true
+  const targetUrl = '/app/phases/2?fresh=true'
+
   ElMessage.info('Starting new competency assessment...')
+
+  // Force full page reload to ensure fresh component state
+  window.location.href = targetUrl
 }
 
 // Lifecycle

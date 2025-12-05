@@ -357,6 +357,7 @@
             :maturity-data="maturityResults"
             :target-group-data="phase1TargetGroupData"
             :roles-data="phase1RolesData || []"
+            :existing-strategies="phase1StrategyData"
             @complete="handleStrategyComplete"
             @back="previousStep"
           />
@@ -1856,18 +1857,24 @@ const checkPhase1Completion = async () => {
       const maturityResponse = await axios.get(`/api/phase1/maturity/${orgId}/latest`)
       const hasMaturity = maturityResponse.data.exists && maturityResponse.data.data
 
-      // Check roles identification
-      const rolesResponse = await axios.get(`/api/phase1/roles/${orgId}/latest`)
-      const hasRoles = rolesResponse.data.success && rolesResponse.data.count > 0
+      // Check target group (replaces hasRoles check for low maturity orgs)
+      // All orgs (low and high maturity) must select a target group
+      const targetGroupResponse = await axios.get(`/api/phase1/target-group/${orgId}`)
+      const hasTargetGroup = targetGroupResponse.data.success && targetGroupResponse.data.data
 
       // Check strategies selection
       const strategiesResponse = await axios.get(`/api/phase1/strategies/${orgId}/latest`)
       const hasStrategies = strategiesResponse.data.success && strategiesResponse.data.count > 0
 
-      const isComplete = hasMaturity && hasRoles && hasStrategies
+      // Phase 1 is complete when all three tasks are done:
+      // Task 1: Maturity Assessment (hasMaturity)
+      // Task 2: Role Identification + Target Group Selection (hasTargetGroup)
+      // Task 3: Strategy Selection (hasStrategies)
+      // Note: Low maturity orgs don't define roles, but they DO select target group
+      const isComplete = hasMaturity && hasTargetGroup && hasStrategies
       console.log('[Phase1] Phase 1 completion check result:', {
         hasMaturity,
-        hasRoles,
+        hasTargetGroup,
         hasStrategies,
         isComplete
       })
@@ -2029,26 +2036,29 @@ onMounted(async () => {
 const determineCurrentStep = async () => {
   // Check completion status of all tasks
   const hasMaturity = maturityCompleted.value || (maturityResults.value && maturityResults.value.id)
-  const hasRoles = phase1RolesData.value && phase1RolesData.value.roles && phase1RolesData.value.roles.length > 0
   const hasTargetGroup = phase1TargetGroupData.value && phase1TargetGroupData.value.size_range
   const hasStrategies = strategyCompleted.value
 
-  console.log('[Phase1] Determining step - maturity:', hasMaturity, 'roles:', hasRoles, 'targetGroup:', hasTargetGroup, 'strategies:', hasStrategies)
+  console.log('[Phase1] Determining step - maturity:', hasMaturity, 'targetGroup:', hasTargetGroup, 'strategies:', hasStrategies)
 
   // Determine appropriate step based on completion
-  if (hasMaturity && hasRoles && hasTargetGroup && hasStrategies) {
+  // Note: We check hasTargetGroup instead of hasRoles because:
+  // - Low maturity orgs don't define roles, but DO select target group
+  // - High maturity orgs define roles AND select target group
+  // - So hasTargetGroup is the universal indicator that Task 2 is complete
+  if (hasMaturity && hasTargetGroup && hasStrategies) {
     // All tasks completed - show Review & Confirm step
     console.log('[Phase1] All tasks complete - going to Review (step 4)')
     currentStep.value = 4
     await loadOrganizationData()
     // Set old archetype completion for backward compatibility
     archetypeCompleted.value = true
-  } else if (hasMaturity && hasRoles && hasTargetGroup) {
-    // Maturity and roles complete, need strategies
-    console.log('[Phase1] Maturity and roles complete - going to Strategy Selection (step 3)')
+  } else if (hasMaturity && hasTargetGroup) {
+    // Maturity and target group complete, need strategies
+    console.log('[Phase1] Maturity and target group complete - going to Strategy Selection (step 3)')
     currentStep.value = 3
   } else if (hasMaturity) {
-    // Only maturity complete, need roles
+    // Only maturity complete, need target group selection
     console.log('[Phase1] Only maturity complete - going to Role Identification (step 2)')
     currentStep.value = 2
   } else {

@@ -17,11 +17,11 @@ const fetchCompetenciesAndProcesses = async () => {
     loading.value = true;
 
     // Fetch competencies
-    const compResponse = await axios.get('/competencies');
+    const compResponse = await axios.get('/api/competencies');
     competencies.value = compResponse.data;
 
     // Fetch processes
-    const rolesProcessesResponse = await axios.get('/roles_and_processes');
+    const rolesProcessesResponse = await axios.get('/api/roles-and-processes');
     processes.value = rolesProcessesResponse.data.processes;
   } catch (error) {
     console.error('Error fetching competencies and processes:', error);
@@ -39,7 +39,7 @@ const fetchAllProcessCompetencyMatrices = async () => {
 
     // Fetch matrix for each competency
     for (const competency of competencies.value) {
-      const response = await axios.get(`/process_competency_matrix/${competency.id}`);
+      const response = await axios.get(`/api/process-competency-matrix/${competency.id}`);
 
       matrixData[competency.id] = {};
       originalData[competency.id] = {};
@@ -132,7 +132,7 @@ const saveAllChanges = async () => {
     });
 
     for (const competencyId of competenciesToUpdate) {
-      await axios.put('/process_competency_matrix/bulk', {
+      await axios.put('/api/process-competency-matrix/bulk', {
         competency_id: competencyId,
         matrix: processCompetencyMatrix.value[competencyId]
       });
