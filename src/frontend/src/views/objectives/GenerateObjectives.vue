@@ -43,9 +43,6 @@
                 <p>{{ competency.description }}</p>
                 <div class="competency-level">
                   Current Level: <strong>{{ competency.currentLevel }}/5</strong>
-                  <span class="gap-indicator" v-if="competency.gap > 0">
-                    (Gap: {{ competency.gap }} levels)
-                  </span>
                 </div>
               </div>
               <div class="competency-progress">
@@ -589,11 +586,6 @@ const getPriorityType = (priority) => {
 .competency-level {
   font-size: 14px;
   color: #909399;
-}
-
-.gap-indicator {
-  color: #f56c6c;
-  font-weight: 600;
 }
 
 .goals-form, .preferences-form {

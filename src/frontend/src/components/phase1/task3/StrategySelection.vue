@@ -440,6 +440,18 @@ const initializeStrategies = async () => {
         console.log('[StrategySelection] Restored user preference:', userPreference.value)
       }
 
+      // Check if any selected strategies are from the "Additional Strategies" section
+      // If yes, auto-unlock that section so users can see their previous selections
+      const recommendedIds = new Set(recommendedStrategies.value.map(s => s.strategy))
+      const hasAdditionalStrategySelected = selectedStrategies.value.some(
+        s => !recommendedIds.has(s.strategy)
+      )
+
+      if (hasAdditionalStrategySelected) {
+        showAllStrategies.value = true
+        console.log('[StrategySelection] Auto-unlocked Additional Strategies section (user previously selected non-recommended strategies)')
+      }
+
       ElMessage.success('Loaded your previously selected strategies')
     } else {
       // No existing selections - use freshly calculated recommendations

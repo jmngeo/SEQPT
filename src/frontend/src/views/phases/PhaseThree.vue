@@ -72,7 +72,6 @@
                 <div class="gap-details">
                   <span class="current-level">Current: Level {{ gap.current_level }}</span>
                   <span class="target-level">Target: Level {{ gap.target_level }}</span>
-                  <span class="gap-size">Gap: {{ gap.gap_size }} levels</span>
                 </div>
               </div>
               <div class="gap-priority">

@@ -64,7 +64,7 @@ with app.app_context():
                         WHEN rpm.role_process_value * pcm.process_competency_value = 0 THEN 0
                         WHEN rpm.role_process_value * pcm.process_competency_value = 1 THEN 1
                         WHEN rpm.role_process_value * pcm.process_competency_value = 2 THEN 2
-                        WHEN rpm.role_process_value * pcm.process_competency_value = 3 THEN 3
+                        WHEN rpm.role_process_value * pcm.process_competency_value = 3 THEN 4  -- Map level 3 to 4 (apply)
                         WHEN rpm.role_process_value * pcm.process_competency_value = 4 THEN 4
                         WHEN rpm.role_process_value * pcm.process_competency_value = 6 THEN 6
                         ELSE -100  -- Invalid combination
@@ -141,7 +141,7 @@ with app.app_context():
                         WHEN urpm.role_process_value * pcm.process_competency_value = 0 THEN 0
                         WHEN urpm.role_process_value * pcm.process_competency_value = 1 THEN 1
                         WHEN urpm.role_process_value * pcm.process_competency_value = 2 THEN 2
-                        WHEN urpm.role_process_value * pcm.process_competency_value = 3 THEN 3
+                        WHEN urpm.role_process_value * pcm.process_competency_value = 3 THEN 4  -- Map level 3 to 4 (apply)
                         WHEN urpm.role_process_value * pcm.process_competency_value = 4 THEN 4
                         WHEN urpm.role_process_value * pcm.process_competency_value = 6 THEN 6
                         ELSE -100

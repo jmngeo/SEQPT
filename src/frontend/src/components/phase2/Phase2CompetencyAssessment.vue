@@ -151,6 +151,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ArrowLeft, ArrowRight, Check } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { phase2Task2Api } from '@/api/phase2'
 import { useAuthStore } from '@/stores/auth'
 import { toast } from 'vue3-toastify'
@@ -244,7 +245,7 @@ const loadAllCompetencyIndicators = async () => {
     const indicatorPromises = props.competencies.map(async (comp) => {
       try {
         const response = await fetch(
-          `http://localhost:5000/get_competency_indicators_for_competency/${comp.competencyId}`
+          `/api/get_competency_indicators_for_competency/${comp.competencyId}`
         )
 
         if (!response.ok) {
@@ -438,6 +439,26 @@ const handleSubmit = async () => {
     return
   }
 
+  // Show confirmation dialog
+  try {
+    await ElMessageBox.confirm(
+      'You have answered all questions. Once submitted, you cannot modify your answers. Do you want to proceed with the submission?',
+      'Confirm Submission',
+      {
+        confirmButtonText: 'Submit Assessment',
+        cancelButtonText: 'Review Answers',
+        type: 'warning',
+        distinguishCancelAndClose: true
+      }
+    )
+  } catch (action) {
+    // User clicked cancel or closed dialog
+    if (action === 'cancel') {
+      toast.info('You can navigate back to review your answers')
+    }
+    return
+  }
+
   submitting.value = true
 
   try {
@@ -562,7 +583,7 @@ const getAreaTagType = (area) => {
 
 .level-cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(3, 1fr); /* 3 cards per row: Groups 1-3 in row 1, 4-5 in row 2 */
   gap: 1rem;
   width: 100%;
 }

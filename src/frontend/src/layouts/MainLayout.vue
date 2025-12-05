@@ -19,6 +19,7 @@
             :default-active="activeRoute"
             mode="horizontal"
             class="main-navigation"
+            :ellipsis="false"
             @select="handleMenuSelect"
           >
             <el-menu-item index="/app/dashboard">
@@ -31,23 +32,20 @@
                 <el-icon><Guide /></el-icon>
                 <span>SE-QPT Phases</span>
               </template>
-              <el-menu-item index="/app/phases/1">Phase 1: Maturity</el-menu-item>
-              <el-menu-item index="/app/phases/2">Phase 2: Assessment</el-menu-item>
-              <el-menu-item index="/app/phases/3">Phase 3: Selection</el-menu-item>
-              <el-menu-item index="/app/phases/4">Phase 4: Planning</el-menu-item>
+              <el-menu-item index="/app/phases/1">Phase 1: Prepare SE Training</el-menu-item>
+              <el-menu-item index="/app/phases/2">Phase 2: Identify Competencies</el-menu-item>
+              <el-menu-item index="/app/phases/3">Phase 3: Macro Planning</el-menu-item>
+              <el-menu-item index="/app/phases/4">Phase 4: Micro Planning</el-menu-item>
             </el-sub-menu>
 
-            <el-menu-item index="/app/assessments/history">
-              <el-icon><DocumentChecked /></el-icon>
-              <span>Assessment History</span>
-            </el-menu-item>
-
+            <!-- Plans button hidden for now - will be used in Phase 4
             <el-menu-item index="/app/plans">
               <el-icon><Calendar /></el-icon>
               <span>Plans</span>
             </el-menu-item>
+            -->
 
-            <el-menu-item index="/app/objectives">
+            <el-menu-item v-if="authStore.isAdmin" index="objectives" @click="goToObjectives">
               <el-icon><Aim /></el-icon>
               <span>Objectives</span>
             </el-menu-item>
@@ -61,6 +59,7 @@
               <el-menu-item index="/admin/matrix/process-competency">Process-Competency Matrix</el-menu-item>
             </el-sub-menu>
 
+            <!-- Admin dropdown removed - placeholder pages not implemented
             <el-sub-menu index="admin" v-if="authStore.isAdmin">
               <template #title>
                 <el-icon><Setting /></el-icon>
@@ -72,37 +71,30 @@
               <el-menu-item index="/admin/modules">Modules</el-menu-item>
               <el-menu-item index="/admin/reports">Reports</el-menu-item>
             </el-sub-menu>
+            -->
           </el-menu>
         </div>
 
         <!-- User Menu -->
         <div class="header-right">
-          <!-- User Dropdown -->
-          <el-dropdown @command="handleUserCommand" trigger="click">
-            <div class="user-info">
-              <el-avatar :size="32" class="user-avatar">
-                <el-icon><User /></el-icon>
-              </el-avatar>
-              <span class="user-name">{{ authStore.userName }}</span>
-              <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">
-                  <el-icon><User /></el-icon>
-                  Profile
-                </el-dropdown-item>
-                <el-dropdown-item command="settings">
-                  <el-icon><Setting /></el-icon>
-                  Settings
-                </el-dropdown-item>
-                <el-dropdown-item divided command="logout">
-                  <el-icon><SwitchButton /></el-icon>
-                  Logout
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <!-- User Info -->
+          <div class="user-info">
+            <el-avatar :size="32" class="user-avatar">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <span class="user-name">{{ authStore.userName }}</span>
+          </div>
+
+          <!-- Logout Button -->
+          <el-button
+            type="info"
+            plain
+            @click="handleLogout"
+            class="logout-button"
+          >
+            <el-icon><SwitchButton /></el-icon>
+            <span>Logout</span>
+          </el-button>
         </div>
       </div>
     </el-header>
@@ -184,8 +176,8 @@ const breadcrumbItems = computed(() => {
   const items = []
   const pathSegments = route.path.split('/').filter(Boolean)
 
-  // Hide breadcrumb for phase routes
-  if (pathSegments.includes('phases')) {
+  // Hide breadcrumb for phase routes and dashboard
+  if (pathSegments.includes('phases') || pathSegments.includes('dashboard')) {
     return []
   }
 
@@ -210,25 +202,24 @@ const breadcrumbItems = computed(() => {
 
 // Methods
 const handleMenuSelect = (index) => {
+  // Skip navigation for custom-handled menu items
+  if (index === 'objectives') return
+
   if (index !== route.path) {
     router.push(index)
   }
 }
 
-const handleUserCommand = (command) => {
-  switch (command) {
-    case 'profile':
-      router.push('/app/profile')
-      break
-    case 'settings':
-      router.push('/app/settings')
-      break
-    case 'logout':
-      authStore.logout().then(() => {
-        router.push('/auth/login')
-      })
-      break
-  }
+const goToObjectives = () => {
+  // Navigate to Phase 2 Task 3 Admin (Dashboard) page
+  // The component automatically uses the user's organization_id
+  router.push({ name: 'Phase2Task3Admin' })
+}
+
+const handleLogout = () => {
+  authStore.logout().then(() => {
+    router.push('/auth/login')
+  })
 }
 
 
@@ -288,10 +279,13 @@ watch(route, () => {
   flex: 1;
   display: flex;
   justify-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .main-navigation {
   border-bottom: none;
+  flex-wrap: nowrap;
 }
 
 .main-navigation .el-menu-item,
@@ -317,14 +311,8 @@ watch(route, () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
   padding: 8px 12px;
   border-radius: 6px;
-  transition: background-color 0.3s;
-}
-
-.user-info:hover {
-  background-color: #f5f7fa;
 }
 
 .user-name {
@@ -332,9 +320,8 @@ watch(route, () => {
   color: #2c3e50;
 }
 
-.dropdown-icon {
-  color: #909399;
-  font-size: 12px;
+.logout-button {
+  height: 36px;
 }
 
 .main-container {

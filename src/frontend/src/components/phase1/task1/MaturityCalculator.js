@@ -93,6 +93,13 @@ export class ImprovedMaturityCalculator {
     // Step 9: Get weakest and strongest fields
     const { weakest, strongest } = this.getFieldExtremes(normalized);
 
+    // Step 10: Generate context-aware description based on Q2 (SE Processes) and Q1 (Rollout Scope)
+    const contextAwareDescription = this.generateContextAwareDescription(
+      answers.seRolesProcesses,
+      answers.rolloutScope,
+      maturityLevel.level
+    );
+
     return {
       rawScore: parseFloat(rawScore.toFixed(1)),
       balancePenalty: parseFloat(penalty.toFixed(1)),
@@ -100,7 +107,7 @@ export class ImprovedMaturityCalculator {
       maturityLevel: maturityLevel.level,
       maturityName: maturityLevel.name,
       maturityColor: maturityLevel.color,
-      maturityDescription: maturityLevel.description,
+      maturityDescription: contextAwareDescription, // Use dynamic description instead of static
       balanceScore: parseFloat(balanceScore.toFixed(1)),
       profileType,
       fieldScores,
@@ -283,6 +290,79 @@ export class ImprovedMaturityCalculator {
         value: parseFloat((fields[fields.length - 1][1] * 100).toFixed(1))
       }
     };
+  }
+
+  /**
+   * Generate context-aware maturity description based on Q2 (SE Processes & Roles)
+   * with optional Q1 (Rollout Scope) context
+   *
+   * Priority: Q2 determines the primary description, Q1 adds secondary context
+   */
+  static generateContextAwareDescription(seProcessesValue, rolloutScopeValue, maturityLevel) {
+    // Question 2 descriptions (from UI - these are the source of truth)
+    const processDescriptions = {
+      0: {
+        primary: 'SE processes are not executed in the organization',
+        detail: 'No defined SE roles exist, and system development lacks structured approaches'
+      },
+      1: {
+        primary: 'SE tasks are performed informally without standardized processes',
+        detail: 'Success depends on individual expertise rather than organizational capability'
+      },
+      2: {
+        primary: 'Specific goals for SE work products and performance metrics are established',
+        detail: 'However, there is no overarching, integrated SE process framework'
+      },
+      3: {
+        primary: 'SE processes are formally defined, documented, and established throughout the company',
+        detail: 'Standard processes exist with clear role definitions'
+      },
+      4: {
+        primary: 'SE processes are measured and controlled using quantitative parameters and metrics',
+        detail: 'Performance is predictable and variations are managed'
+      },
+      5: {
+        primary: 'SE processes are continuously improved based on quantitative feedback and innovative practices',
+        detail: 'The organization proactively enhances processes'
+      }
+    };
+
+    // Question 1 context descriptors (optional secondary context)
+    const rolloutContext = {
+      0: 'with no SE deployment',
+      1: 'in isolated areas only',
+      2: 'primarily in development departments',
+      3: 'across the entire organization',
+      4: 'throughout the value chain'
+    };
+
+    // Get the primary description from Q2
+    const processInfo = processDescriptions[seProcessesValue] || processDescriptions[0];
+
+    // Build the description with Q2 as primary
+    let description = processInfo.primary + '.';
+
+    // Add Q1 context if it provides meaningful differentiation
+    // Only add context if it's not redundant with the process level
+    if (rolloutScopeValue !== undefined && rolloutScopeValue !== null) {
+      // For low process maturity (0-2), rollout context is less relevant
+      // For high process maturity (3+), rollout context adds valuable information
+      if (seProcessesValue >= 3) {
+        description = processInfo.primary + ' ' + rolloutContext[rolloutScopeValue] + '.';
+      }
+    }
+
+    // Add detail for clarity (especially important when overall level seems contradictory)
+    if (seProcessesValue <= 2 && maturityLevel >= 3) {
+      // If process maturity is low but overall level is high (due to other factors),
+      // make it clear that processes are still not mature
+      description += ' ' + processInfo.detail + '.';
+    } else if (seProcessesValue >= 4) {
+      // For advanced process maturity, include the detail to show sophistication
+      description += ' ' + processInfo.detail + '.';
+    }
+
+    return description;
   }
 
   /**

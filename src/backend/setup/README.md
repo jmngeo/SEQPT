@@ -398,6 +398,22 @@ After setup is complete:
 
 ---
 
+## Migrations for Existing Databases
+
+If you already have a database with competencies but need to update it with new features:
+
+```bash
+cd setup/migrations
+```
+
+Available migrations:
+- **009_add_competency_descriptions.sql** - Adds English descriptions to all 16 competencies
+  ```bash
+  PGPASSWORD=SeQpt_2025 psql -h localhost -U seqpt_admin -d seqpt_database -f 009_add_competency_descriptions.sql
+  ```
+
+---
+
 ## Reference Data Details
 
 ### ISO/IEC 15288 Processes (30 processes)
@@ -411,10 +427,12 @@ After setup is complete:
 ### SE Competencies (16 competencies)
 
 Based on INCOSE SE Competency Framework:
-- Core competencies
-- Technical competencies
-- Management competencies
-- Social competencies
+- **Core competencies** (4): Systems Thinking, Lifecycle Consideration, Customer/Value Orientation, Systems Modelling & Analysis
+- **Technical competencies** (5): Requirements Definition, System Architecting, Integration/Verification/Validation, Operation & Support, Agile Methods
+- **Management competencies** (4): Project Management, Decision Management, Information Management, Configuration Management
+- **Social competencies** (3): Communication, Leadership, Self-Organization
+
+**Note**: All competencies include English descriptions sourced from the SE4OWL competency framework
 
 ### SE Role Clusters (14 roles)
 

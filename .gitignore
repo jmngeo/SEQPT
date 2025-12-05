@@ -101,6 +101,15 @@ htmlcov/
 *.o
 *.a
 
+# Archive directory - contains code backups and historical snapshots
+# Keep tracked for project continuity but exclude large/generated content
+archive/code_backups/
+archive/scripts/
+
+# Test data and temporary results
+src/backend/test_*.json
+test_export.xlsx
+
 # Package locks (keep package.json and requirements.txt)
 # Uncomment if you want to track lock files:
 # package-lock.json

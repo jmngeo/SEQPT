@@ -4,7 +4,6 @@
     <section class="hero-section">
       <div class="hero-content">
         <div class="hero-text">
-          <div class="mvp-badge">MVP Beta Version</div>
           <h1 class="hero-title">SE-QPT Platform</h1>
           <h2 class="hero-subtitle">Systems Engineering Qualification Planning Tool</h2>
           <p class="hero-description">
@@ -44,10 +43,21 @@
         </div>
 
         <div class="hero-visual">
-          <div class="workflow-diagram">
-            <div class="phase-circle" v-for="(phase, index) in phases" :key="index">
-              <div class="phase-number">{{ index + 1 }}</div>
-              <div class="phase-name">{{ phase.name }}</div>
+          <div class="phases-container">
+            <div
+              v-for="(phase, index) in phases"
+              :key="index"
+              class="phase-card-modern"
+              :class="`phase-color-${index + 1}`"
+            >
+              <div class="phase-header">
+                <div class="phase-number-badge">{{ index + 1 }}</div>
+                <div class="phase-icon">{{ phase.icon }}</div>
+              </div>
+              <div class="phase-body">
+                <h3 class="phase-title">{{ phase.name }}</h3>
+                <p class="phase-description">{{ phase.description }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -64,10 +74,26 @@ import { useAuthStore } from '@/stores/auth'
 const authStore = useAuthStore()
 
 const phases = ref([
-  { name: 'Analysis' },
-  { name: 'Requirements' },
-  { name: 'Pre-concept' },
-  { name: 'Detailed concept' }
+  {
+    name: 'Foundation & Strategy',
+    description: 'Assess SE maturity and select training approach',
+    icon: '🎯'
+  },
+  {
+    name: 'Competency Assessment',
+    description: 'Define competencies and learning objectives',
+    icon: '📊'
+  },
+  {
+    name: 'Learning Design',
+    description: 'Select modules and qualification formats',
+    icon: '📚'
+  },
+  {
+    name: 'Implementation Planning',
+    description: 'Create detailed implementation roadmap',
+    icon: '🚀'
+  }
 ])
 
 </script>
@@ -97,19 +123,6 @@ const phases = ref([
   grid-template-columns: 1fr 1fr;
   gap: 60px;
   align-items: center;
-}
-
-.mvp-badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  display: inline-block;
-  margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
 }
 
 .hero-title {
@@ -211,137 +224,109 @@ const phases = ref([
   padding: 0 24px;
 }
 
-.workflow-diagram {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  justify-content: center;
-  align-items: center;
+.phases-container {
+  display: flex;
+  flex-direction: column;
   gap: 24px;
-  max-width: 500px;
+  max-width: 480px;
   margin: 0 auto;
 }
 
-.phase-circle {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+.phase-card-modern {
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-radius: 24px;
-  width: 200px;
-  height: 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px 20px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 12px;
   position: relative;
-  overflow: hidden;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.phase-circle::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.6s ease;
+.phase-card-modern:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateX(8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
 }
 
-.phase-circle:hover::before {
-  left: 100%;
+.phase-card-modern.phase-color-1:hover {
+  border-color: rgba(102, 126, 234, 0.6);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.3);
 }
 
-.phase-circle:hover {
-  transform: translateY(-8px) scale(1.05);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 100%);
-  border-color: rgba(255, 255, 255, 0.6);
-  box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.2),
-    0 0 0 1px rgba(255, 255, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  animation: float-hover 1s ease-in-out infinite;
+.phase-card-modern.phase-color-2:hover {
+  border-color: rgba(240, 147, 251, 0.6);
+  box-shadow: 0 12px 32px rgba(240, 147, 251, 0.3);
 }
 
-@keyframes float-hover {
-  0%, 100% {
-    transform: translateY(-8px) scale(1.05);
-  }
-  50% {
-    transform: translateY(-12px) scale(1.05);
-  }
+.phase-card-modern.phase-color-3:hover {
+  border-color: rgba(79, 172, 254, 0.6);
+  box-shadow: 0 12px 32px rgba(79, 172, 254, 0.3);
 }
 
-.phase-circle:nth-child(1):hover {
-  background: linear-gradient(135deg, rgba(74, 144, 226, 0.4) 0%, rgba(74, 144, 226, 0.2) 100%);
-  box-shadow:
-    0 16px 48px rgba(74, 144, 226, 0.4),
-    0 0 0 1px rgba(74, 144, 226, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+.phase-card-modern.phase-color-4:hover {
+  border-color: rgba(67, 233, 123, 0.6);
+  box-shadow: 0 12px 32px rgba(67, 233, 123, 0.3);
 }
 
-.phase-circle:nth-child(2):hover {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.4) 0%, rgba(52, 211, 153, 0.2) 100%);
-  box-shadow:
-    0 16px 48px rgba(52, 211, 153, 0.4),
-    0 0 0 1px rgba(52, 211, 153, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+.phase-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.phase-circle:nth-child(3):hover {
-  background: linear-gradient(135deg, rgba(251, 146, 60, 0.4) 0%, rgba(251, 146, 60, 0.2) 100%);
-  box-shadow:
-    0 16px 48px rgba(251, 146, 60, 0.4),
-    0 0 0 1px rgba(251, 146, 60, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.phase-circle:nth-child(4):hover {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.4) 0%, rgba(168, 85, 247, 0.2) 100%);
-  box-shadow:
-    0 16px 48px rgba(168, 85, 247, 0.4),
-    0 0 0 1px rgba(168, 85, 247, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.phase-number {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin-bottom: 4px;
-  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
-}
-
-.phase-circle:hover .phase-number {
-  transform: scale(1.1);
-  text-shadow: 0 4px 20px rgba(255, 255, 255, 0.5);
-}
-
-.phase-name {
+.phase-number-badge {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.2;
-  hyphens: auto;
-  word-break: break-word;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
   transition: all 0.3s ease;
 }
 
-.phase-circle:hover .phase-name {
-  transform: translateY(2px);
-  letter-spacing: 1px;
+.phase-card-modern:hover .phase-number-badge {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
 }
 
+.phase-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.phase-card-modern:hover .phase-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.phase-body {
+  padding-left: 44px;
+}
+
+.phase-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.phase-description {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+  line-height: 1.4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -380,14 +365,41 @@ const phases = ref([
     justify-content: center;
   }
 
-  .workflow-diagram {
-    grid-template-columns: 1fr;
+  .phases-container {
+    max-width: 100%;
+    padding: 0;
     gap: 16px;
   }
 
-  .phase-circle {
-    width: 280px;
-    height: 100px;
+  .phase-card-modern {
+    padding: 14px 16px;
+  }
+
+  .phase-card-modern:hover {
+    transform: translateX(4px);
+  }
+
+  .phase-title {
+    font-size: 0.95rem;
+  }
+
+  .phase-description {
+    font-size: 0.8rem;
+  }
+
+  .phase-body {
+    padding-left: 0;
+    margin-top: 10px;
+  }
+
+  .phase-icon {
+    font-size: 1.3rem;
+  }
+
+  .phase-number-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
   }
 }
 </style>

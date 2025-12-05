@@ -1,7 +1,11 @@
 <template>
-  <div class="derik-task-selector">
-    <h2 class="section-title">Task-Based Assessment</h2>
-    <p class="section-description">Describe your tasks and responsibilities to automatically map to SE roles</p>
+  <el-card class="derik-task-selector">
+    <template #header>
+      <div class="card-header">
+        <h2 class="section-title">Task-Based Assessment</h2>
+        <p class="section-description">Describe your tasks and responsibilities to automatically map to SE roles</p>
+      </div>
+    </template>
 
     <div class="task-form">
       <!-- Tasks Responsible For -->
@@ -10,7 +14,7 @@
         <el-input
           v-model="tasksResponsibleFor"
           type="textarea"
-          :rows="4"
+          :rows="6"
           placeholder="Describe the primary tasks for which you are responsible..."
           class="task-input"
         />
@@ -22,7 +26,7 @@
         <el-input
           v-model="tasksYouSupport"
           type="textarea"
-          :rows="4"
+          :rows="6"
           placeholder="Describe tasks you provide support for..."
           class="task-input"
         />
@@ -34,7 +38,7 @@
         <el-input
           v-model="tasksDefineAndImprove"
           type="textarea"
-          :rows="4"
+          :rows="6"
           placeholder="Describe tasks and processes you are involved in defining or designing..."
           class="task-input"
         />
@@ -82,12 +86,15 @@
       </div>
 
       <!-- Role-based alternative card -->
+      <!-- Commented out: Not applicable when maturity < 3 (task-based pathway required) -->
+      <!--
       <div class="role-card" @click="$emit('switchToRoleBased')">
         <div class="role-card-title">Want to Select Roles Directly?</div>
         <div class="role-card-text">
           Switch to role-based selection if you prefer to choose from predefined SE roles.
         </div>
       </div>
+      -->
     </div>
 
     <!-- Actions -->
@@ -139,14 +146,25 @@
         </el-button>
       </template>
     </el-dialog>
-  </div>
+  </el-card>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 
-const emit = defineEmits(['tasksAnalyzed', 'switchToRoleBased'])
+const props = defineProps({
+  organizationId: {
+    type: Number,
+    required: true
+  },
+  username: {
+    type: String,
+    required: true
+  }
+})
+
+const emit = defineEmits(['tasksAnalyzed'])
 
 // State
 const tasksResponsibleFor = ref('')
@@ -256,27 +274,37 @@ const analyzeTasksAndProceed = async () => {
     isLoading.value = true
     simulateProgress()
 
-    // Call the public API endpoint
-    const response = await fetch('/api/derik/public/identify-processes', {
+    console.log('[DerikTaskSelector] Calling /api/findProcesses with username:', props.username)
+
+    // Call the /findProcesses endpoint (stores data in DB and populates competency matrix)
+    const response = await fetch('/api/findProcesses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        job_description: taskDescription
+        username: props.username,
+        organizationId: props.organizationId,
+        tasks: {
+          responsible_for: tasksResponsibleFor.value.split('\n').filter(t => t.trim()),
+          supporting: tasksYouSupport.value.split('\n').filter(t => t.trim()),
+          designing: tasksDefineAndImprove.value.split('\n').filter(t => t.trim())
+        }
       })
     })
 
     if (response.ok) {
       const data = await response.json()
+      // The response format from /findProcesses is: {status: "success", processes: [{process_name, involvement}, ...]}
       processResult.value = data.processes || []
       console.log('Identified processes:', processResult.value)
+      console.log('Full API response:', data)
     } else {
       throw new Error('Failed to identify processes')
     }
   } catch (error) {
     console.error('Failed to analyze tasks:', error)
-    errorMessage.value = 'Failed to analyze your tasks. Please try again or switch to role-based selection.'
+    errorMessage.value = 'Failed to analyze your tasks. Please refine your task descriptions and try again.'
     showErrorDialog.value = true
   } finally {
     isLoading.value = false
@@ -295,8 +323,13 @@ const getInvolvementType = (involvement) => {
 
 const proceedToAssessment = () => {
   if (filteredProcessResult.value.length === 0) {
-    ElMessage.warning('No processes identified. Please try again or switch to role-based selection.')
-    return
+    ElMessage({
+      type: 'warning',
+      message: 'No processes identified with your current tasks. This will result in 0 required competencies. Please refine your task descriptions and click "Analyze Tasks" again to get better results.',
+      duration: 6000,
+      showClose: true
+    })
+    // Don't return - allow user to see "0 competencies" result and go back to edit
   }
 
   emit('tasksAnalyzed', {
@@ -313,20 +346,25 @@ const proceedToAssessment = () => {
 
 <style scoped>
 .derik-task-selector {
-  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-.section-title {
+.card-header {
+  text-align: left;
+}
+
+.card-header .section-title {
   font-size: 1.8rem;
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 8px;
+  margin: 0 0 8px 0;
 }
 
-.section-description {
-  color: #6c7b7f;
-  margin-bottom: 30px;
-  font-size: 1.1rem;
+.card-header .section-description {
+  color: #606266;
+  font-size: 14px;
+  margin: 0;
 }
 
 .task-form {
@@ -347,6 +385,30 @@ const proceedToAssessment = () => {
 
 .task-input {
   width: 100%;
+}
+
+/* Custom scrollbar styling for textareas */
+.task-input :deep(textarea) {
+  scrollbar-width: thin;
+  scrollbar-color: #409eff #f5f7fa;
+}
+
+.task-input :deep(textarea::-webkit-scrollbar) {
+  width: 8px;
+}
+
+.task-input :deep(textarea::-webkit-scrollbar-track) {
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.task-input :deep(textarea::-webkit-scrollbar-thumb) {
+  background: #409eff;
+  border-radius: 4px;
+}
+
+.task-input :deep(textarea::-webkit-scrollbar-thumb:hover) {
+  background: #337ecc;
 }
 
 .loading-container {

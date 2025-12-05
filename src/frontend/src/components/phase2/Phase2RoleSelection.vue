@@ -92,11 +92,16 @@
             </el-icon>
           </div>
 
-          <p v-if="role.orgRoleName" class="role-description">
-            Standard SE Role: {{ role.standardRoleName }}
+          <!-- Show description if available -->
+          <p v-if="role.role_description || role.description" class="role-description">
+            {{ role.role_description || role.description }}
           </p>
-          <p v-else class="role-description">
-            Standard SE Role
+
+          <!-- Show standard role mapping if this is a custom role with a standard mapping -->
+          <p v-if="role.standardRoleName && role.identificationMethod !== 'STANDARD'"
+             class="role-mapping"
+             style="font-size: 12px; color: #909399; margin-top: 4px;">
+            Based on: {{ role.standardRoleName }}
           </p>
         </div>
       </div>
@@ -240,10 +245,18 @@ const handleCalculateCompetencies = async () => {
 
       toast.success(`Found ${response.count} necessary competencies`)
 
+      // Get full role objects for selected IDs
+      const selectedRolesData = identifiedRoles.value.filter(role =>
+        selectedRoleIds.value.includes(role.id)
+      )
+
+      console.log('[Phase2] Selected roles data:', selectedRolesData)
+      console.log('[Phase2] First role properties:', selectedRolesData[0])
+
       // Emit to parent with competency data
       emit('next', {
         competencies: response.competencies,
-        selectedRoles: response.selectedRoles,
+        selectedRoles: selectedRolesData,
         organizationId: props.organizationId
       })
     }

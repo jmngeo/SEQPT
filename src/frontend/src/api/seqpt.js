@@ -243,7 +243,7 @@ export const seqptApi = {
     },
 
     getHealth: () => {
-      return axios.get('/health')
+      return axios.get('/api/health')
     }
   }
 }

@@ -39,17 +39,8 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     proxy: {
+      // Single proxy for all API endpoints - backend serves everything under /api/
       '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-        secure: false
-      },
-      '/mvp': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-        secure: false
-      },
-      '/login': {
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false

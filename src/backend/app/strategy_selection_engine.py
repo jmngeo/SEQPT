@@ -236,11 +236,11 @@ class StrategySelectionEngine:
         se_processes_value = self.maturity_data.get('se_processes', 0)
         rollout_scope_value = self.maturity_data.get('rollout_scope', 0)
 
-        if se_processes_value <= 1:
-            # Low maturity path: Motivation Phase
+        if se_processes_value <= 2:
+            # Low maturity path: Motivation Phase (levels 0-2: Not Available, Ad hoc, Individually Controlled)
             self.select_low_maturity_strategies()
         else:
-            # Higher maturity path: Implementation/Continuation Phase
+            # Higher maturity path: Implementation/Continuation Phase (levels 3+: Defined and Established onwards)
             self.select_high_maturity_strategies(rollout_scope_value)
 
         # Step 3: Validate strategies against target group size
@@ -338,7 +338,7 @@ class StrategySelectionEngine:
     def requires_secondary_selection(self):
         """Check if user needs to select a secondary strategy"""
         se_processes_value = self.maturity_data.get('se_processes', 0)
-        return se_processes_value <= 1
+        return se_processes_value <= 2
 
     def validate_against_group_size(self):
         """Check if selected strategies are appropriate for group size"""
@@ -364,7 +364,7 @@ class StrategySelectionEngine:
                 'seProcesses': {
                     'value': se_processes_value,
                     'level': self.get_maturity_level_name(se_processes_value),
-                    'implication': 'Organization needs foundational SE establishment' if se_processes_value <= 1 else 'Organization has established SE processes'
+                    'implication': 'Organization needs foundational SE establishment and management enablement' if se_processes_value <= 2 else 'Organization has established SE processes ready for advanced training'
                 },
                 'rolloutScope': {
                     'value': rollout_scope_value,
@@ -456,10 +456,10 @@ class StrategySelectionEngine:
         se_mindset_value = self.maturity_data.get('se_mindset', 0)
         knowledge_base_value = self.maturity_data.get('knowledge_base', 0)
 
-        if se_processes_value <= 1:
+        if se_processes_value <= 2:
             recommendations.append({
                 'type': 'CRITICAL',
-                'message': 'Focus on establishing management commitment before broad rollout'
+                'message': 'Focus on establishing management commitment and standardizing processes before broad rollout'
             })
 
         if se_mindset_value <= 1:

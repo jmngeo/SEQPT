@@ -15,15 +15,19 @@
     "@mdi/font": "^7.4.47",
     "axios": "^1.6.2",
     "chart.js": "^4.4.1",
+    "echarts": "^6.0.0",
     "element-plus": "^2.4.4",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^5.0.2",
     "pinia": "^2.1.7",
     "vue": "^3.3.8",
     "vue-chartjs": "^5.2.0",
+    "vue-echarts": "^8.0.1",
     "vue-router": "^4.2.5",
     "vue3-toastify": "^0.2.8",
-    "vuetify": "^3.10.5"
+    "vuetify": "^3.10.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.2",

@@ -59,27 +59,41 @@ def create_app(config_name='development'):
          allow_headers=['Content-Type', 'Authorization'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          supports_credentials=True,
-         expose_headers=['Content-Type', 'Authorization']
+         expose_headers=['Content-Type', 'Authorization', 'Content-Disposition']
     )
 
-    # Register blueprints
-    from app.routes import main_bp  # Unified routes (main + MVP)
-    # from app.auth import auth_bp  # Disabled - using MVP auth system instead
-    # from app.api import api_bp  # REMOVED Phase 3 - Broken (uses removed models)
-    # from app.admin import admin_bp  # REMOVED Phase 3 - Broken (uses removed models)
-    # from app.questionnaire_api import questionnaire_bp  # REMOVED Phase 2 - Unused (empty tables)
-    # from app.module_api import module_bp  # REMOVED Phase 2 - Unused (empty tables)
+    # Register blueprints - Refactored routes structure (Dec 2025)
+    # All routes are now organized into domain-specific blueprints
+    from app.routes.auth import auth_bp
+    from app.routes.organization import org_bp
+    from app.routes.phase1_maturity import phase1_maturity_bp
+    from app.routes.phase1_roles import phase1_roles_bp
+    from app.routes.phase1_strategies import phase1_strategies_bp
+    from app.routes.phase2_assessment import phase2_assessment_bp
+    from app.routes.phase2_learning import phase2_learning_bp
+    from app.routes.main import main_bp
     from app.competency_service import competency_service_bp
 
-    app.register_blueprint(main_bp)  # All routes now in single blueprint
-    # app.register_blueprint(auth_bp, url_prefix='/auth')  # Disabled - using MVP auth system instead
-    # app.register_blueprint(api_bp, url_prefix='/api')  # REMOVED Phase 3 - Archived to archive/blueprints/api.py
-    # app.register_blueprint(admin_bp, url_prefix='/admin')  # REMOVED Phase 3 - Archived to archive/blueprints/admin.py
-    # app.register_blueprint(questionnaire_bp, url_prefix='/api')  # REMOVED Phase 2 - Unused
-    # app.register_blueprint(module_bp, url_prefix='/api')  # REMOVED Phase 2 - Unused
+    # Register all blueprints under /api prefix
+    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(org_bp, url_prefix='/api')
+    app.register_blueprint(phase1_maturity_bp, url_prefix='/api')
+    app.register_blueprint(phase1_roles_bp, url_prefix='/api')
+    app.register_blueprint(phase1_strategies_bp, url_prefix='/api')
+    app.register_blueprint(phase2_assessment_bp, url_prefix='/api')
+    app.register_blueprint(phase2_learning_bp, url_prefix='/api')
+    app.register_blueprint(main_bp, url_prefix='/api')
     app.register_blueprint(competency_service_bp, url_prefix='/api/competency')
 
-    print("Unified routes registered successfully (main + MVP in single blueprint)")
+    print("[OK] All 8 route blueprints registered successfully:"
+          "\n  - auth_bp: /api/mvp/auth/*, /api/auth/*"
+          "\n  - org_bp: /api/organization/*"
+          "\n  - phase1_maturity_bp: /api/phase1/maturity/*"
+          "\n  - phase1_roles_bp: /api/phase1/roles/*, /api/findProcesses, /api/role-clusters"
+          "\n  - phase1_strategies_bp: /api/phase1/target-group/*, /api/phase1/strategies/*"
+          "\n  - phase2_assessment_bp: /api/phase2/*, /api/assessment/*"
+          "\n  - phase2_learning_bp: /api/phase2/learning-objectives/*"
+          "\n  - main_bp: /api/ (misc routes)")
 
     # Import Derik's routes - Enable competency assessor integration
     try:
