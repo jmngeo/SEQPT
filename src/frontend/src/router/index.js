@@ -111,12 +111,6 @@ const routes = [
         meta: { title: 'Take Assessment' }
       },
       {
-        path: 'assessments/history',
-        name: 'AssessmentHistory',
-        component: () => import('@/components/assessment/AssessmentHistory.vue'),
-        meta: { title: 'Assessment History' }
-      },
-      {
         path: 'assessments/:id/results',
         name: 'AssessmentResults',
         component: () => import('@/components/phase2/CompetencyResults.vue'),
