@@ -30,13 +30,33 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 # Template file path (v2 with PMT breakdown structure)
-# From: src/backend/app/services/learning_objectives_text_generator.py
-# To:   data/source/Phase 2/se_qpt_learning_objectives_template_v2.json
-# Navigate: services -> app -> backend -> src -> project_root -> data
-# Use resolve() to get absolute path - works regardless of working directory (Docker-safe)
+# Supports both Docker deployment and local development
 _current_file = Path(__file__).resolve()
-_project_root = _current_file.parent.parent.parent.parent.parent
-TEMPLATE_PATH = _project_root / 'data' / 'source' / 'Phase 2' / 'se_qpt_learning_objectives_template_v2.json'
+_backend_root = _current_file.parent.parent.parent  # services -> app -> backend
+
+def _get_template_path():
+    """
+    Get path to LO template file.
+
+    Path resolution order:
+    1. Local to backend (Docker): src/backend/data/templates/se_qpt_learning_objectives_template_v2.json
+    2. Project root (Local dev): data/source/Phase 2/se_qpt_learning_objectives_template_v2.json
+    """
+    # Path 1: Docker path (template inside backend)
+    docker_path = _backend_root / 'data' / 'templates' / 'se_qpt_learning_objectives_template_v2.json'
+    if docker_path.exists():
+        return docker_path
+
+    # Path 2: Local dev path (template at project root)
+    project_root = _backend_root.parent.parent  # backend -> src -> project_root
+    dev_path = project_root / 'data' / 'source' / 'Phase 2' / 'se_qpt_learning_objectives_template_v2.json'
+    if dev_path.exists():
+        return dev_path
+
+    # Return Docker path as default (will show appropriate error if missing)
+    return docker_path
+
+TEMPLATE_PATH = _get_template_path()
 
 # Strategies requiring deep customization with PMT (use normalized canonical names)
 DEEP_CUSTOMIZATION_STRATEGIES = [

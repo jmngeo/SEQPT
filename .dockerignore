@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+ENV/
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+
+# Archives and backups (large directories)
+archive/
+archives/
+
+# Documentation (not needed at runtime)
+docs/
+*.md
+!README.md
+
+# Test files
+tests/
+*.test.py
+test_*.py
+*.spec.js
+
+# Local environment
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+logs/
+
+# Frontend source (built separately)
+src/frontend/
+
+# Data files NOT needed (keep only essential ones)
+data/archive/
+data/Meeting notes/
+data/PMT/
+data/source/Phase 1 changes/
+data/source/Phase 3/
+data/source/questionnaires/
+data/source/templates/
+data/source/thesis_files/
+data/source/excel/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+nul

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+flask_debug.log
+flask_output.log
+
+# Local files
+instance/
+*.sqlite
+*.db
+
+# Test files
+tests/
+*.test.py
+test_*.py
+
+# Archive and backup
+archive/
+*.backup
+*.backup_*
+*.archived
+
+# Documentation
+*.md
+!README.md
+
+# IMPORTANT: Keep these directories (co-located dependencies)
+!config/
+!data/
+
+# Misc
+nul
+.DS_Store
+Thumbs.db

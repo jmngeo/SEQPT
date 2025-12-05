@@ -38,17 +38,40 @@ phase2_learning_bp = Blueprint('phase2_learning', __name__)
 # ==============================================================================
 from pathlib import Path
 
+def _get_backend_root():
+    """Get backend root path: src/backend/"""
+    # This file: src/backend/app/routes/phase2_learning.py
+    # Navigate: routes -> app -> backend
+    current_file = Path(__file__).resolve()
+    return current_file.parent.parent.parent
+
+
 def _get_project_root():
     """Get project root path using absolute path resolution (Docker-safe)"""
-    # This file: src/backend/app/routes/phase2_learning.py
-    # Navigate: routes -> app -> backend -> src -> project_root
-    current_file = Path(__file__).resolve()
-    return current_file.parent.parent.parent.parent.parent
+    # Navigate: backend -> src -> project_root
+    return _get_backend_root().parent.parent
 
 
 def _get_pmt_examples_dir():
-    """Get PMT reference examples directory path (Docker-safe)"""
-    return str(_get_project_root() / 'data' / 'PMT' / 'reference_examples')
+    """
+    Get PMT reference examples directory path.
+
+    Path resolution order:
+    1. Local to backend (Docker): src/backend/data/pmt_examples/
+    2. Project root (Local dev): data/PMT/reference_examples/
+    """
+    # Path 1: Docker path (inside backend)
+    docker_path = _get_backend_root() / 'data' / 'pmt_examples'
+    if docker_path.exists():
+        return str(docker_path)
+
+    # Path 2: Local dev path (at project root)
+    dev_path = _get_project_root() / 'data' / 'PMT' / 'reference_examples'
+    if dev_path.exists():
+        return str(dev_path)
+
+    # Return Docker path as default
+    return str(docker_path)
 
 
 # ==============================================================================
