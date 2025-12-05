@@ -15,7 +15,8 @@ RUN npm ci --only=production=false
 # Copy source code
 COPY . .
 
-# Build for production
+# Build for production with increased memory limit for low-memory VMs
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npm run build
 
 # Stage 2: Serve with nginx
