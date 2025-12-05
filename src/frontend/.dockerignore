@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output (we rebuild in Docker)
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+tests/
+*.test.js
+*.spec.js
+coverage/
+
+# Auto-generated
+auto-imports.d.ts
+components.d.ts
+
+# Misc
+.DS_Store
+Thumbs.db
+nul

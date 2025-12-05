@@ -38,19 +38,37 @@ DEFAULT_CONFIG = {
 }
 
 # Path to configuration file
-# From: src/backend/app/services/config_loader.py
-# To:   config/learning_objectives_config.json
-# Use pathlib with resolve() for absolute path - Docker-safe
+# Supports both Docker deployment and local development
 from pathlib import Path
 
 def get_config_path():
-    """Get path to configuration file (Docker-safe, works from any working directory)"""
-    # Get absolute path of this file using resolve()
+    """
+    Get path to configuration file.
+
+    Path resolution order:
+    1. Local to backend (Docker): src/backend/config/learning_objectives_config.json
+    2. Project root (Local dev): config/learning_objectives_config.json
+    """
     current_file = Path(__file__).resolve()
-    # Navigate: services -> app -> backend -> src -> project_root
-    project_root = current_file.parent.parent.parent.parent.parent
-    config_path = project_root / 'config' / 'learning_objectives_config.json'
-    return str(config_path)
+    # Navigate: services -> app -> backend
+    backend_root = current_file.parent.parent.parent
+
+    # Path 1: Docker path (config inside backend)
+    docker_path = backend_root / 'config' / 'learning_objectives_config.json'
+    if docker_path.exists():
+        logger.debug(f"[Config] Using Docker path: {docker_path}")
+        return str(docker_path)
+
+    # Path 2: Local dev path (config at project root)
+    project_root = backend_root.parent.parent  # backend -> src -> project_root
+    dev_path = project_root / 'config' / 'learning_objectives_config.json'
+    if dev_path.exists():
+        logger.debug(f"[Config] Using dev path: {dev_path}")
+        return str(dev_path)
+
+    # Return Docker path as default (will show appropriate error if missing)
+    logger.warning(f"[Config] No config file found, expected at: {docker_path} or {dev_path}")
+    return str(docker_path)
 
 CONFIG_PATH = get_config_path()
 

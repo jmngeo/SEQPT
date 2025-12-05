@@ -1694,11 +1694,18 @@ def load_learning_objective_templates() -> Optional[Dict]:
     from pathlib import Path
 
     # Path to template JSON (v2 with PMT breakdown structure)
-    # From src/backend/app/services/ we need to go up 4 levels to reach project root
-    # Use resolve() for absolute path - works regardless of working directory (Docker-safe)
+    # Supports both Docker deployment and local development
     _current_file = Path(__file__).resolve()
-    _project_root = _current_file.parent.parent.parent.parent.parent
-    template_path = str(_project_root / 'data' / 'source' / 'Phase 2' / 'se_qpt_learning_objectives_template_v2.json')
+    _backend_root = _current_file.parent.parent.parent  # services -> app -> backend
+
+    # Path 1: Docker path (template inside backend)
+    docker_path = _backend_root / 'data' / 'templates' / 'se_qpt_learning_objectives_template_v2.json'
+    if docker_path.exists():
+        template_path = str(docker_path)
+    else:
+        # Path 2: Local dev path (template at project root)
+        _project_root = _backend_root.parent.parent  # backend -> src -> project_root
+        template_path = str(_project_root / 'data' / 'source' / 'Phase 2' / 'se_qpt_learning_objectives_template_v2.json')
 
     try:
         with open(template_path, 'r', encoding='utf-8') as f:
