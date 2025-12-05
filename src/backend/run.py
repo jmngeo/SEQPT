@@ -22,18 +22,21 @@ from models import (
 
 def create_application():
     """Create and configure the Flask application"""
-    app = create_app()
+    application = create_app()
 
     # Initialize Flask-Migrate
-    migrate = Migrate(app, db)
+    migrate = Migrate(application, db)
 
-    return app
+    return application
+
+# Create app instance for gunicorn (run:app)
+app = create_application()
 
 def init_database():
     """Initialize database with tables and sample data"""
-    app = create_application()
+    _app = create_application()
 
-    with app.app_context():
+    with _app.app_context():
         print("Creating database tables...")
         db.create_all()
 
