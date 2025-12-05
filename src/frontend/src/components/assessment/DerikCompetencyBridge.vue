@@ -271,7 +271,7 @@ const loadRoles = async () => {
   try {
     loading.value = true
     // Use SE-QPT's backend API endpoint with authentication
-    const response = await fetch('http://localhost:5000/roles', {
+    const response = await fetch('/api/roles', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('se_qpt_token')}`
       }
@@ -323,7 +323,7 @@ const loadCompetenciesForRoles = async () => {
     }
 
     // Get competencies for the selected roles using Derik's API format
-    const response = await fetch('http://localhost:5000/get_required_competencies_for_roles', {
+    const response = await fetch('/api/get_required_competencies_for_roles', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -390,7 +390,7 @@ const loadAllCompetencyData = async () => {
     // Fetch indicators for each competency individually
     const indicatorPromises = competencies.value.map(async (comp) => {
       console.log(`Fetching indicators for competency ${comp.competency_id}`)
-      const response = await fetch(`http://localhost:5000/get_competency_indicators_for_competency/${comp.competency_id}`)
+      const response = await fetch(`/api/get_competency_indicators_for_competency/${comp.competency_id}`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -565,7 +565,7 @@ const submitSurvey = async () => {
     // Step 1: Create authenticated assessment using new endpoint
     const user = JSON.parse(localStorage.getItem('user'))
 
-    const assessmentResponse = await fetch('http://localhost:5000/assessment/start', {
+    const assessmentResponse = await fetch('/api/assessment/start', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -621,7 +621,7 @@ const submitSurvey = async () => {
     console.log('Submitting assessment data:', submissionData)
 
     // Step 4: Submit to new authenticated endpoint
-    const response = await fetch(`http://localhost:5000/assessment/${assessment_id.value}/submit`, {
+    const response = await fetch(`/api/assessment/${assessment_id.value}/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
