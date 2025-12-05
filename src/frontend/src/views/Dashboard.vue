@@ -422,7 +422,7 @@ const loadDashboardData = async () => {
 
     if (token) {
       console.log('[Dashboard] Making request to /api/latest_competency_overview')
-      const response = await fetch('http://localhost:5000/api/latest_competency_overview', {
+      const response = await fetch('/api/latest_competency_overview', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

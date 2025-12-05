@@ -220,7 +220,7 @@ const fetchAssessmentHistory = async () => {
     const adminUserId = user.id
 
     // Fetch assessment history from backend
-    const response = await fetch(`http://localhost:5000/api/users/${adminUserId}/assessments`)
+    const response = await fetch(`/api/user/${adminUserId}/assessments`)
 
     if (!response.ok) {
       throw new Error(`Failed to fetch assessments: ${response.status}`)
