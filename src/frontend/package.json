@@ -1,6 +1,7 @@
 {
   "name": "seqpt-frontend",
   "version": "1.0.0",
+  "type": "module",
   "description": "SE-QPT Frontend - Vue.js 3 application",
   "main": "src/main.js",
   "scripts": {
