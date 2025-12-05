@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 import os
-from langchain.chat_models import init_chat_model
 from dotenv import load_dotenv
 
 # Load environment variables from .env
