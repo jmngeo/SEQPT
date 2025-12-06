@@ -9,10 +9,10 @@ Flask-JWT-Extended==4.6.0
 psycopg2-binary==2.9.9
 SQLAlchemy==2.0.23
 
-# LangChain and AI (identical to Derik's setup)
-langchain==0.1.0
-langchain-openai==0.0.2
-langchain-community==0.0.10
+# LangChain and AI (updated for with_structured_output support)
+langchain==0.3.14
+langchain-openai==0.2.14
+langchain-community==0.3.14
 openai>=1.6.1
 
 # Data processing
@@ -28,7 +28,7 @@ python-docx==1.2.0
 chromadb==0.4.21
 
 # Validation and utilities
-pydantic==2.5.2
+pydantic>=2.7.4
 python-dotenv==1.0.0
 click==8.1.7
 

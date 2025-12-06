@@ -1,6 +1,6 @@
 # SE-QPT Project Backlog
 
-**Last Updated:** 2025-11-28
+**Last Updated:** 2025-12-06
 
 This document tracks features, improvements, and issues that have been identified but deferred for future implementation (Phase 3, Phase 4, or post-thesis).
 
@@ -148,6 +148,25 @@ This document tracks features, improvements, and issues that have been identifie
 
 **Effort:** 1-2 weeks
 
+**Implementation Note (2025-12-06):**
+Related but separate: `role_based_pathway_fixed.py` contains a fully implemented threshold-based validation system for the HIGH MATURITY pathway that calculates:
+- Scenario A/B/C/D user classification
+- Gap severity (critical/significant/minor) using configurable thresholds
+- Strategy adequacy status (CRITICAL/INADEQUATE/ACCEPTABLE/GOOD/EXCELLENT)
+- Fit scores per strategy per competency
+
+This code **runs and calculates values** but the results at `gap_based_training.strategy_validation` are **not displayed in the frontend**. The frontend only shows the simpler "Mastery Level Advisory" from `validate_mastery_requirements()` in `learning_objectives_core.py`.
+
+The thresholds are configurable in `src/backend/config/learning_objectives_config.json`:
+- `critical_gap_threshold`: 60%
+- `significant_gap_threshold`: 20%
+- `inadequate_gap_percentage`: 40%
+
+This is technical debt - the calculation runs but output is unused. Options for future:
+1. Wire frontend to display threshold validation results
+2. Remove unused code to simplify
+3. Leave as-is for potential future use
+
 ---
 
 ### 6. Individual Coaching Recommendations
@@ -265,7 +284,54 @@ This document tracks features, improvements, and issues that have been identifie
 
 ## Bug Fixes and Technical Debt (No Timeline)
 
-### 11. Flask Hot-Reload Issues
+### 11. LLM Implementation Standardization
+
+**Source:** Production debugging session, 2025-12-06
+
+**Problem:**
+The codebase has 11 LLM implementations using two different approaches:
+- **LangChain ChatOpenAI** (4 instances): `generate_survey_feedback.py`, `llm_process_identification_pipeline.py`
+- **Direct OpenAI SDK** (7 instances): All other files
+
+This inconsistency caused a production issue where `langchain-openai==0.0.2` didn't support `with_structured_output()` used by feedback generation.
+
+**Current State:**
+| File | Approach | Output Format |
+|------|----------|---------------|
+| `generate_survey_feedback.py` | LangChain | Structured (Pydantic) |
+| `llm_process_identification_pipeline.py` | LangChain | Structured (Pydantic) |
+| `role_cluster_mapping_service.py` | Direct SDK | JSON |
+| `custom_role_matrix_generator.py` | Direct SDK | JSON |
+| `learning_objectives_core.py` | Direct SDK | Plain text |
+| `learning_objectives_text_generator.py` | Direct SDK | Plain text |
+| `routes.py` (document extraction) | Direct SDK | JSON |
+
+**Recommendation:** Standardize on LangChain
+- Better type safety with Pydantic models
+- Automatic validation via `with_structured_output()`
+- Consistent error handling
+- Future-proof (LangChain handles API changes)
+
+**Implementation Steps:**
+1. Create central LLM client: `src/backend/app/services/llm_client.py`
+2. Migrate Direct SDK calls to LangChain
+3. Create Pydantic models for all structured responses
+4. Centralize temperature constants (0=deterministic, 0.3=controlled, 0.8=creative)
+5. Add token management across all implementations
+
+**Fixed (2025-12-06):**
+- Updated `requirements.txt`: `langchain-openai` 0.0.2 → 0.2.14
+- Updated `langchain` 0.1.0 → 0.3.14
+- Updated `langchain-community` 0.0.10 → 0.3.14
+- Updated `pydantic` 2.5.2 → >=2.7.4
+
+**Impact:** Low - Technical debt, not user-facing
+
+**Effort:** 2-3 weeks
+
+---
+
+### 12. Flask Hot-Reload Issues (Windows)
 
 **Problem:** Flask hot-reload doesn't work reliably on Windows
 
@@ -275,7 +341,7 @@ This document tracks features, improvements, and issues that have been identifie
 
 ---
 
-### 12. Unicode/Emoji Handling in Windows Console
+### 13. Unicode/Emoji Handling in Windows Console
 
 **Problem:** Windows console (charmap encoding) can't handle emoji characters
 
@@ -285,7 +351,7 @@ This document tracks features, improvements, and issues that have been identifie
 
 ---
 
-### 13. Database Connection Pooling
+### 14. Database Connection Pooling
 
 **Problem:** No connection pooling configured
 
